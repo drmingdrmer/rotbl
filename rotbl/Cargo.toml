@@ -1,0 +1,52 @@
+[package]
+name = "rotbl"
+readme = "../README.md"
+
+version       = { workspace = true }
+edition       = { workspace = true }
+authors       = { workspace = true }
+categories    = { workspace = true }
+description   = { workspace = true }
+documentation = { workspace = true }
+homepage      = { workspace = true }
+keywords      = { workspace = true }
+license       = { workspace = true }
+repository    = { workspace = true }
+
+[dependencies]
+
+# data flow
+futures         = { workspace = true }
+itertools       = { workspace = true }
+
+# data structure
+lru-cache       = { workspace = true }
+
+# error handling
+anyhow          = { workspace = true }
+
+# serialization
+byteorder       = { workspace = true }
+bytes           = { workspace = true }
+crc32fast       = { workspace = true }
+serde           = { workspace = true }
+serde_json      = { workspace = true }
+
+# testing
+
+[dev-dependencies]
+maplit          = { workspace = true }
+pretty_assertions  = { workspace = true }
+tempfile        = { workspace = true }
+
+
+[features]
+
+[package.metadata.docs.rs]
+
+# Enable this flag to show all types/mods, including the feature enabled ones on docs.rs
+all-features = true
+
+# Sort modules by appearance order for crate `docs`.
+# https://doc.rust-lang.org/rustdoc/unstable-features.html#--sort-modules-by-appearance-control-how-items-on-module-pages-are-sorted
+rustdoc-args = ["-Z", "unstable-options", "--sort-modules-by-appearance"]

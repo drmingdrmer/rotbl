@@ -1,0 +1,122 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  schedule: [cron: "40 1 * * *"]
+
+jobs:
+
+  test-release-build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - toolchain: "nightly"
+
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2
+
+
+      - name: Setup | Toolchain
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: "${{ matrix.toolchain }}"
+          override: true
+
+
+      - name: Build | Release Mode
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+
+
+  unittest:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - toolchain: "stable"
+            features: ""
+
+          - toolchain: "nightly"
+            features: ""
+
+    steps:
+      - name: Setup | Checkout
+        uses: actions/checkout@v2
+
+
+      - name: Setup | Toolchain
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: "${{ matrix.toolchain }}"
+          override: true
+
+
+      # - A store with defensive checks returns error when unexpected accesses are sent to RaftStore.
+      # - Raft should not depend on defensive error to work correctly.
+      - name: Test crate `openraft/`
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --features "${{ matrix.features }}"
+        env:
+          # Parallel tests block each other and result in timeout.
+          RUST_TEST_THREADS: 2
+          RUST_LOG: debug
+          RUST_BACKTRACE: full
+
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: "ut-${{ matrix.toolchain }}-${{ matrix.features }}"
+          path: |
+            openraft/_log/
+            tests/_log/
+
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1.0.6
+        with:
+          components: rustfmt, clippy
+
+      - name: Format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+
+      - name: clippy
+        shell: bash
+        run: |
+          cargo clippy --no-deps --workspace --all-targets                -- -D warnings
+          # cargo clippy --no-deps --workspace --all-targets --features "bt,serde,bench,single-term-leader,compat-07" -- -D warnings
+
+
+      - name: Build-doc
+        uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --all --no-deps
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+
+
+      - name: Audit dependencies
+        shell: bash
+        # if: "!contains(github.event.head_commit.message, 'skip audit')"
+        run: cargo audit --db ./target/advisory-db
