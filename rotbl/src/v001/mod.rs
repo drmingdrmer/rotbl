@@ -14,6 +14,7 @@ mod rotbl;
 mod rotbl_io;
 mod rotbl_io_get;
 mod rotbl_io_stream;
+mod rotbl_meta;
 pub(crate) mod testing;
 mod tseq;
 mod with_checksum;
@@ -26,6 +27,7 @@ pub use config::BlockConfig;
 pub use config::Config;
 pub use db::DB;
 pub use footer::Footer;
+pub use rotbl_meta::RotblMeta;
 pub use tseq::TSeq;
 pub use tseq::TSeqValue;
 

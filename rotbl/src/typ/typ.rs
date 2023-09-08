@@ -8,6 +8,7 @@ use crate::codec::Codec;
 
 const VL_ARRAY: [u8; 8] = *b"vla\0\0\0\0\0";
 const ROTBL: [u8; 8] = *b"rotbl\0\0\0";
+const ROTBL_META: [u8; 8] = *b"rotbl_m\0";
 const BLOCK: [u8; 8] = *b"blk\0\0\0\0\0";
 const BLOCK_INDEX: [u8; 8] = *b"blk_idx\0";
 
@@ -17,6 +18,7 @@ const BLOCK_INDEX: [u8; 8] = *b"blk_idx\0";
 pub enum Type {
     VLArray,
     Rotbl,
+    RotblMeta,
     Block,
     BlockIndex,
 }
@@ -34,6 +36,7 @@ impl Codec for Type {
         let b = match self {
             Type::VLArray => &VL_ARRAY,
             Type::Rotbl => &ROTBL,
+            Type::RotblMeta => &ROTBL_META,
             Type::Block => &BLOCK,
             Type::BlockIndex => &BLOCK_INDEX,
         };
@@ -49,6 +52,7 @@ impl Codec for Type {
         match buf {
             VL_ARRAY => Ok(Type::VLArray),
             ROTBL => Ok(Type::Rotbl),
+            ROTBL_META => Ok(Type::RotblMeta),
             BLOCK => Ok(Type::Block),
             BLOCK_INDEX => Ok(Type::BlockIndex),
             _ => Err(Error::new(
@@ -65,6 +69,7 @@ mod tests {
     use crate::typ::typ::BLOCK;
     use crate::typ::typ::BLOCK_INDEX;
     use crate::typ::typ::ROTBL;
+    use crate::typ::typ::ROTBL_META;
     use crate::typ::typ::VL_ARRAY;
     use crate::typ::Type;
 
@@ -84,6 +89,14 @@ mod tests {
             assert_eq!(n, 8);
             assert_eq!(b, ROTBL);
             assert_eq!(Type::decode(&mut b.as_slice())?, Type::Rotbl);
+        }
+
+        {
+            let mut b = Vec::new();
+            let n = Type::RotblMeta.encode(&mut b)?;
+            assert_eq!(n, 8);
+            assert_eq!(b, ROTBL_META);
+            assert_eq!(Type::decode(&mut b.as_slice())?, Type::RotblMeta);
         }
 
         {

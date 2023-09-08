@@ -22,6 +22,7 @@ use crate::v001::footer::Footer;
 use crate::v001::header::Header;
 use crate::v001::rotbl_io::IODriver;
 use crate::v001::rotbl_io::IOPort;
+use crate::v001::rotbl_meta::RotblMeta;
 use crate::v001::tseq::TSeqValue;
 use crate::v001::with_checksum::WithChecksum;
 use crate::version::Version;
@@ -39,6 +40,8 @@ pub struct Rotbl {
 
     pub(crate) table_id: u32,
 
+    meta: RotblMeta,
+
     pub(crate) block_index: BlockIndex,
 
     #[allow(dead_code)]
@@ -53,6 +56,7 @@ impl Rotbl {
     /// ```text
     /// | Header
     /// | TableId with checksum
+    /// | Meta
     /// | Block 0
     /// | Block 1
     /// | ...
@@ -63,6 +67,8 @@ impl Rotbl {
         db: &DB,
         path: P,
         table_id: u32,
+        seq: u64,
+        user_data: impl ToString,
         kvs: impl IntoIterator<Item = (String, TSeqValue)>,
     ) -> Result<Rotbl, io::Error> {
         let mut n = 0;
@@ -78,6 +84,10 @@ impl Rotbl {
 
         let tid = WithChecksum::new(table_id);
         n += tid.encode(&mut f)?;
+
+        // Write RotblMeta
+        let rotbl_meta = RotblMeta::new(seq, user_data);
+        n += rotbl_meta.encode(&mut f)?;
 
         // Writ blocks
 
@@ -127,6 +137,7 @@ impl Rotbl {
             file: Arc::new(Mutex::new(f)),
             header,
             table_id,
+            meta: rotbl_meta,
             footer,
             block_index,
         };
@@ -145,6 +156,9 @@ impl Rotbl {
         // TableId
 
         let table_id = WithChecksum::<u32>::decode(&mut f)?.into_inner();
+
+        // Meta
+        let meta = RotblMeta::decode(&mut f)?;
 
         // Footer
 
@@ -173,9 +187,14 @@ impl Rotbl {
             footer,
             block_index,
             table_id,
+            meta,
         };
 
         Ok(r)
+    }
+
+    pub fn meta(&self) -> &RotblMeta {
+        &self.meta
     }
 
     /// Return the block if it is in the cache.
@@ -259,6 +278,8 @@ mod tests {
 
         assert_eq!(t.header, Header::new(Type::Rotbl, Version::V001));
         assert_eq!(t.table_id, 12);
+        assert_eq!(t.meta.user_data(), "hello");
+        assert_eq!(t.meta.seq(), 5);
         assert_eq!(t.block_index, BlockIndex {
             header: Header::new(Type::BlockIndex, Version::V001),
             // It is created, has not encoded size
@@ -266,7 +287,7 @@ mod tests {
             data: index_data.clone(),
         });
 
-        assert_eq!(t.footer, Footer::new(258));
+        assert_eq!(t.footer, Footer::new(335));
 
         Ok(())
     }
@@ -284,14 +305,16 @@ mod tests {
 
         assert_eq!(t.header, Header::new(Type::Rotbl, Version::V001));
         assert_eq!(t.table_id, 12);
+        assert_eq!(t.meta.user_data(), "hello");
+        assert_eq!(t.meta.seq(), 5);
         assert_eq!(t.block_index, BlockIndex {
             header: Header::new(Type::BlockIndex, Version::V001),
             // It is set when decode()
-            data_encoded_size: 141,
+            data_encoded_size: 142,
             data: index_data.clone(),
         });
 
-        assert_eq!(t.footer, Footer::new(258));
+        assert_eq!(t.footer, Footer::new(335));
 
         Ok(())
     }
@@ -522,19 +545,19 @@ mod tests {
             ss("d") => TSeqValue::new(2,true, bb("D")),
         };
 
-        let t = Rotbl::create_table(db, path, 12, kvs)?;
+        let t = Rotbl::create_table(db, path, 12, 5, "hello", kvs)?;
 
         let mut index_data = Vec::new();
         index_data.push(BlockMeta {
             block_num: 0,
-            offset: 36,
+            offset: 113,
             size: 138,
             first_key: ss("a"),
             last_key: ss("c"),
         });
         index_data.push(BlockMeta {
             block_num: 1,
-            offset: 174,
+            offset: 251,
             size: 84,
             first_key: ss("d"),
             last_key: ss("d"),
