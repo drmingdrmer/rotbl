@@ -290,7 +290,7 @@ impl TestContext {
 /// d: 2, true, D,
 /// ---
 /// ```
-fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Result<(Rotbl, Vec<BlockMeta>)> {
+pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Result<(Rotbl, Vec<BlockMeta>)> {
     let kvs = maplit::btreemap! {
         ss("a") => TSeqValue::new(1,false, bb("A")),
         ss("b") => TSeqValue::new(2,true, bb("B")),

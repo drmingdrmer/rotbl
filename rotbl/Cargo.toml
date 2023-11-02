@@ -2,42 +2,44 @@
 name = "rotbl"
 readme = "../README.md"
 
-version       = { workspace = true }
-edition       = { workspace = true }
-authors       = { workspace = true }
-categories    = { workspace = true }
-description   = { workspace = true }
-documentation = { workspace = true }
-homepage      = { workspace = true }
-keywords      = { workspace = true }
-license       = { workspace = true }
-repository    = { workspace = true }
+version              = { workspace = true }
+edition              = { workspace = true }
+authors              = { workspace = true }
+categories           = { workspace = true }
+description          = { workspace = true }
+documentation        = { workspace = true }
+homepage             = { workspace = true }
+keywords             = { workspace = true }
+license              = { workspace = true }
+repository           = { workspace = true }
 
 [dependencies]
 
 # data flow
-futures         = { workspace = true }
-itertools       = { workspace = true }
+futures              = { workspace = true }
+futures-async-stream = { workspace = true }
+itertools            = { workspace = true }
+tokio                = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 # data structure
-lru-cache       = { workspace = true }
+lru-cache            = { workspace = true }
 
 # error handling
-anyhow          = { workspace = true }
+anyhow               = { workspace = true }
 
 # serialization
-byteorder       = { workspace = true }
-bytes           = { workspace = true }
-crc32fast       = { workspace = true }
-serde           = { workspace = true }
-serde_json      = { workspace = true }
+byteorder            = { workspace = true }
+bytes                = { workspace = true }
+crc32fast            = { workspace = true }
+serde                = { workspace = true }
+serde_json           = { workspace = true }
 
 # testing
 
 [dev-dependencies]
-maplit          = { workspace = true }
-pretty_assertions  = { workspace = true }
-tempfile        = { workspace = true }
+maplit               = { workspace = true }
+pretty_assertions    = { workspace = true }
+tempfile             = { workspace = true }
 
 
 [features]

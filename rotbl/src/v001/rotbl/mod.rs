@@ -1,12 +1,19 @@
+#[cfg(test)]
+mod rotbl_async_test;
+#[cfg(test)]
+mod rotbl_test;
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::io::Read;
 use std::io::Seek;
+use std::ops::RangeBounds;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use futures::stream::BoxStream;
 use itertools::Itertools;
 
 use crate::buf::new_uninitialized;
@@ -20,6 +27,7 @@ use crate::v001::block_index::BlockMeta;
 use crate::v001::db::DB;
 use crate::v001::footer::Footer;
 use crate::v001::header::Header;
+use crate::v001::range::RangeArg;
 use crate::v001::rotbl_io::IODriver;
 use crate::v001::rotbl_io::IOPort;
 use crate::v001::rotbl_meta::RotblMeta;
@@ -213,26 +221,39 @@ impl Rotbl {
     pub fn load_block(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
         let block_id = BlockId::new(self.table_id, block_num);
 
+        // Hold the lock until the block is loaded.
         let mut cache = self.block_cache.lock().unwrap();
         if let Some(b) = cache.get(&block_id).cloned() {
             return Ok(b);
         }
 
-        let block_index_entry = self.block_index.get_index_entry_by_num(block_num).unwrap();
+        let block = self.do_load_block(block_num)?;
 
-        let mut buf = new_uninitialized(block_index_entry.size as usize);
+        cache.insert(block_id, block.clone());
+
+        Ok(block)
+    }
+
+    pub async fn load_block_async(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+        let join_handle = tokio::task::block_in_place(move || self.load_block(block_num));
+        let block = join_handle?;
+        Ok(block)
+    }
+
+    /// Load block from disk without accessing cache.
+    pub(crate) fn do_load_block(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+        let block_meta = self.block_index.get_index_entry_by_num(block_num).unwrap();
+
+        let mut buf = new_uninitialized(block_meta.size as usize);
 
         {
             let mut f = self.file.lock().unwrap();
-            f.seek(io::SeekFrom::Start(block_index_entry.offset))?;
+            f.seek(io::SeekFrom::Start(block_meta.offset))?;
             f.read_exact(&mut buf)?;
         }
 
         let block = Block::decode(&mut buf.as_slice())?;
         let block = Arc::new(block);
-
-        cache.insert(block_id, block.clone());
-
         Ok(block)
     }
 
@@ -242,7 +263,37 @@ impl Rotbl {
             io: IOPort::new(),
         }
     }
-}
 
-#[cfg(test)]
-mod rotbl_test;
+    pub async fn get(&self, key: &str) -> Result<Option<TSeqValue>, io::Error> {
+        let block_num = self.block_index.lookup(key).map(|x| x.block_num);
+
+        let Some(block_num) = block_num else {
+            return Ok(None);
+        };
+
+        let block = self.load_block_async(block_num).await?;
+        let v = block.get(key).cloned();
+        Ok(v)
+    }
+
+    /// Return a static `Stream` that iterating kvs in the specified range.
+    pub fn range(
+        self: &Arc<Self>,
+        range: impl RangeArg<String>,
+    ) -> BoxStream<'static, Result<(String, TSeqValue), io::Error>> {
+        self.clone().do_range(range)
+    }
+
+    #[futures_async_stream::try_stream(boxed, ok = (String, TSeqValue), error = io::Error)]
+    async fn do_range(self: Arc<Self>, range: impl RangeArg<String>) {
+        let block_metas = self.block_index.lookup_range(range.clone()).to_vec();
+
+        for m in block_metas {
+            let block = self.load_block_async(m.block_num).await?;
+            let it = block.range(range.clone());
+            for (k, v) in it {
+                yield (k.clone(), v.clone());
+            }
+        }
+    }
+}

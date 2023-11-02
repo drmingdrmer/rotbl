@@ -1,3 +1,5 @@
+#![feature(coroutines)]
+
 extern crate core;
 
 pub mod buf;

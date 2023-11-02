@@ -45,4 +45,8 @@ impl<D> TSeqValue<D> {
     pub fn data_ref(&self) -> &D {
         &self.data
     }
+
+    pub fn into_data(self) -> D {
+        self.data
+    }
 }

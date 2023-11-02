@@ -10,6 +10,7 @@ mod config;
 mod db;
 mod footer;
 mod header;
+mod range;
 mod rotbl;
 mod rotbl_io;
 mod rotbl_io_get;
@@ -32,3 +33,5 @@ pub use tseq::TSeq;
 pub use tseq::TSeqValue;
 
 pub use crate::v001::rotbl::Rotbl;
+
+// TODO: introduce an Error for rotbl
