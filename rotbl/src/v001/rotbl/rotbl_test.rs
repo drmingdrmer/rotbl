@@ -40,7 +40,7 @@ fn test_create_table() -> anyhow::Result<()> {
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(351));
+    assert_eq!(t.footer, Footer::new(359));
 
     Ok(())
 }
@@ -67,7 +67,7 @@ fn test_open_table() -> anyhow::Result<()> {
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(351));
+    assert_eq!(t.footer, Footer::new(359));
 
     Ok(())
 }
@@ -142,16 +142,16 @@ fn test_rotbl_io_driver_get() -> anyhow::Result<()> {
     // Get from non-cached block
 
     let fu = drv.get("a");
-    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
+    let got = drv.block_on(fu)?;
 
-    assert_eq!(Some(bb("A")), got);
+    assert_eq!(Some(SeqMarked::new_tombstone(1)), got);
 
     // Get from cached block
 
     let fu = drv.get("a");
-    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
+    let got = drv.block_on(fu)?;
 
-    assert_eq!(Some(bb("A")), got);
+    assert_eq!(Some(SeqMarked::new_tombstone(1)), got);
 
     Ok(())
 }
@@ -292,10 +292,10 @@ impl TestContext {
 /// ```
 pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Result<(Rotbl, Vec<BlockMeta>)> {
     let kvs = maplit::btreemap! {
-        ss("a") => SeqMarked::new(1,false, bb("A")),
-        ss("b") => SeqMarked::new(2,true, bb("B")),
-        ss("c") => SeqMarked::new(2,true, bb("C")),
-        ss("d") => SeqMarked::new(2,true, bb("D")),
+        ss("a") => SeqMarked::new_tombstone(1),
+        ss("b") => SeqMarked::new_normal(2, bb("B")),
+        ss("c") => SeqMarked::new_normal(2, bb("C")),
+        ss("d") => SeqMarked::new_normal(2, bb("D")),
     };
 
     let t = Rotbl::create_table(db, path, 12, 5, "hello", kvs)?;
@@ -304,14 +304,14 @@ pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Resu
     index_data.push(BlockMeta {
         block_num: 0,
         offset: 113,
-        size: 151,
+        size: 155,
         first_key: ss("a"),
         last_key: ss("c"),
     });
     index_data.push(BlockMeta {
         block_num: 1,
-        offset: 264,
-        size: 87,
+        offset: 268,
+        size: 91,
         first_key: ss("d"),
         last_key: ss("d"),
     });

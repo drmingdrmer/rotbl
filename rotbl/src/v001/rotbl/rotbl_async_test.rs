@@ -33,13 +33,19 @@ async fn test_rotbl_async_get() -> anyhow::Result<()> {
 
     // Get from non-cached block
 
-    let got = t.get("a").await?.and_then(SeqMarked::into_data);
-    assert_eq!(Some(bb("A")), got);
+    let got = t.get("a").await?;
+    assert_eq!(Some(SeqMarked::new_tombstone(1)), got);
 
     // Get from cached block
 
-    let got = t.get("a").await?.and_then(SeqMarked::into_data);
-    assert_eq!(Some(bb("A")), got);
+    let got = t.get("a").await?;
+    assert_eq!(Some(SeqMarked::new_tombstone(1)), got);
+
+    let got = t.get("b").await?;
+    assert_eq!(Some(SeqMarked::new_normal(2, bb("B"))), got);
+
+    let got = t.get("d").await?;
+    assert_eq!(Some(SeqMarked::new_normal(2, bb("D"))), got);
 
     Ok(())
 }
@@ -57,14 +63,14 @@ async fn test_rotbl_async_range() -> anyhow::Result<()> {
     // Full range
 
     let r = t.range(..);
-    let got_keys = r.map_ok(|(k, _v)| k.clone()).try_collect::<Vec<_>>().await?;
+    let got_keys = r.map_ok(|(k, _v)| k).try_collect::<Vec<_>>().await?;
 
     assert_eq!(vec![ss("a"), ss("b"), ss("c"), ss("d")], got_keys);
 
     // Sub range in block 0
 
     let r = t.range(ss("a1")..=ss("c"));
-    let got_keys = r.map_ok(|(k, _v)| k.clone()).try_collect::<Vec<_>>().await?;
+    let got_keys = r.map_ok(|(k, _v)| k).try_collect::<Vec<_>>().await?;
 
     assert_eq!(vec![ss("b"), ss("c")], got_keys);
 

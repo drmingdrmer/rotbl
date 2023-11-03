@@ -93,10 +93,10 @@ mod tests {
     fn test_block_stream() -> anyhow::Result<()> {
         //
         let block_data = maplit::btreemap! {
-            ss("a") => SeqMarked::new(1, false, bb("A")),
-            ss("b") => SeqMarked::new(2, true,  bb("B")),
-            ss("c") => SeqMarked::new(3, true,  bb("C")),
-            ss("d") => SeqMarked::new(4, true,  bb("D")),
+            ss("a") => SeqMarked::new_tombstone(1),
+            ss("b") => SeqMarked::new_normal(2, bb("B")),
+            ss("c") => SeqMarked::new_normal(3, bb("C")),
+            ss("d") => SeqMarked::new_normal(4, bb("D")),
         };
 
         let block = Block::new(5, block_data.clone());

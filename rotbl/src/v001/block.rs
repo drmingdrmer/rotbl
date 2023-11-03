@@ -130,8 +130,8 @@ mod tests {
     #[test]
     fn test_block_codec() -> anyhow::Result<()> {
         let block_data = maplit::btreemap! {
-            ss("a") => SeqMarked::new(1,false, bb("A")),
-            ss("b") => SeqMarked::new(2,true, bb("B")),
+            ss("a") => SeqMarked::new_normal(1, bb("A")),
+            ss("b") => SeqMarked::new_tombstone(2),
         };
         let mut block = Block::new(5, block_data.clone());
 
@@ -171,21 +171,21 @@ mod tests {
     #[test]
     fn test_block_get_range() -> anyhow::Result<()> {
         let block_data = maplit::btreemap! {
-            ss("a") => SeqMarked::new(1,false, bb("A")),
-            ss("b") => SeqMarked::new(2,true, bb("B")),
-            ss("c") => SeqMarked::new(3,true, bb("C")),
-            ss("d") => SeqMarked::new(4,true, bb("D")),
+            ss("a") => SeqMarked::new_tombstone(1),
+            ss("b") => SeqMarked::new_normal(2, bb("B")),
+            ss("c") => SeqMarked::new_normal(3, bb("C")),
+            ss("d") => SeqMarked::new_normal(4, bb("D")),
         };
         let block = Block::new(5, block_data.clone());
 
         assert_eq!(None, block.get("z"));
-        assert_eq!(Some(&SeqMarked::new(1, false, bb("A"))), block.get("a"));
+        assert_eq!(Some(&SeqMarked::new_tombstone(1)), block.get("a"));
 
         let got = block.range(ss("b")..ss("e")).collect::<Vec<_>>();
         assert_eq!(got, vec![
-            (&ss("b"), &SeqMarked::new(2, true, bb("B"))),
-            (&ss("c"), &SeqMarked::new(3, true, bb("C"))),
-            (&ss("d"), &SeqMarked::new(4, true, bb("D"))),
+            (&ss("b"), &SeqMarked::new_normal(2, bb("B"))),
+            (&ss("c"), &SeqMarked::new_normal(3, bb("C"))),
+            (&ss("d"), &SeqMarked::new_normal(4, bb("D"))),
         ]);
 
         Ok(())
