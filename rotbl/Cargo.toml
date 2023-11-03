@@ -19,7 +19,9 @@ repository           = { workspace = true }
 futures              = { workspace = true }
 futures-async-stream = { workspace = true }
 itertools            = { workspace = true }
-tokio                = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+# runtime
+tokio                = { workspace = true }
 
 # data structure
 lru-cache            = { workspace = true }

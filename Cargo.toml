@@ -14,21 +14,33 @@ repository = "https://github.com/drmingdrmer/rotbl"
 
 
 [workspace.dependencies]
-anyhow            = "1.0.63"
+
+# data flow
+futures              = { version = "0.3" }
+futures-async-stream = { version = "0.2.9" }
+itertools            = { version = "0.11.0" }
+
+# runtime
+tokio                = { version = "1.33.0", features = ["rt-multi-thread", "macros"] }
+
+# data structure
+lru-cache         = { git = "https://github.com/drmingdrmer/lru-cache", tag = "v0.1.4-alpha.4" }
+maplit            = { version = "1.0.2" }
+
+# error handling
+anyhow            = { version = "1.0.63" }
+
+# serialization
 byteorder         = { version = "1.4.3" }
 bytes             = { version = "1.0" }
 crc32fast         = { version = "1.3.2" }
-futures           = "0.3"
-itertools         = { version = "0.11.0" }
-lru-cache         = { git = "https://github.com/drmingdrmer/lru-cache", tag = "v0.1.4-alpha.4" }
-pretty_assertions = "1.0.0"
-serde             = { version="1.0.114", features=["derive", "rc"]}
-serde_json        = "1.0.57"
-tempfile          = { version = "3.4.0" }
-maplit            = "1.0.2"
+serde             = { version = "1.0.114", features = ["derive", "rc"]}
+serde_json        = { version = "1.0.57" }
 
-tokio             = { version = "1.33.0" }
-futures-async-stream = { version = "0.2.9" }
+# testing
+pretty_assertions = { version = "1.0.0" }
+tempfile          = { version = "3.4.0" }
+
 
 
 # compare           = { version = "0.1.0" }
