@@ -74,8 +74,7 @@ impl Rotbl {
         db: &DB,
         path: P,
         table_id: u32,
-        seq: u64,
-        user_data: impl ToString,
+        rotbl_meta: RotblMeta,
         kvs: impl IntoIterator<Item = (String, SeqMarked)>,
     ) -> Result<Rotbl, io::Error> {
         let mut n = 0;
@@ -93,7 +92,6 @@ impl Rotbl {
         n += tid.encode(&mut f)?;
 
         // Write RotblMeta
-        let rotbl_meta = RotblMeta::new(seq, user_data);
         n += rotbl_meta.encode(&mut f)?;
 
         // Writ blocks

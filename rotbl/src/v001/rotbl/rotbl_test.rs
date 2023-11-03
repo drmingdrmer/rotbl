@@ -17,6 +17,7 @@ use crate::v001::header::Header;
 use crate::v001::rotbl::Rotbl;
 use crate::v001::testing::bb;
 use crate::v001::testing::ss;
+use crate::v001::RotblMeta;
 use crate::v001::SeqMarked;
 use crate::version::Version;
 
@@ -298,7 +299,8 @@ pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Resu
         ss("d") => SeqMarked::new_normal(2, bb("D")),
     };
 
-    let t = Rotbl::create_table(db, path, 12, 5, "hello", kvs)?;
+    let rotbl_meta = RotblMeta::new(5, "hello");
+    let t = Rotbl::create_table(db, path, 12, rotbl_meta, kvs)?;
 
     let mut index_data = Vec::new();
     index_data.push(BlockMeta {
