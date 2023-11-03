@@ -17,7 +17,7 @@ use crate::v001::header::Header;
 use crate::v001::rotbl::Rotbl;
 use crate::v001::testing::bb;
 use crate::v001::testing::ss;
-use crate::v001::tseq::TSeqValue;
+use crate::v001::SeqMarked;
 use crate::version::Version;
 
 #[test]
@@ -40,7 +40,7 @@ fn test_create_table() -> anyhow::Result<()> {
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(335));
+    assert_eq!(t.footer, Footer::new(351));
 
     Ok(())
 }
@@ -67,7 +67,7 @@ fn test_open_table() -> anyhow::Result<()> {
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(335));
+    assert_eq!(t.footer, Footer::new(351));
 
     Ok(())
 }
@@ -128,28 +128,28 @@ fn test_rotbl_io_driver_get() -> anyhow::Result<()> {
     // Get from non-existent block
 
     let fu = drv.get("e");
-    let got = drv.block_on(fu)?.map(|v| v.data_ref().clone());
+    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
 
     assert_eq!(None, got);
 
     // Get non-existent from existent block
 
     let fu = drv.get("a1");
-    let got = drv.block_on(fu)?.map(|v| v.data_ref().clone());
+    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
 
     assert_eq!(None, got);
 
     // Get from non-cached block
 
     let fu = drv.get("a");
-    let got = drv.block_on(fu)?.map(|v| v.data_ref().clone());
+    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
 
     assert_eq!(Some(bb("A")), got);
 
     // Get from cached block
 
     let fu = drv.get("a");
-    let got = drv.block_on(fu)?.map(|v| v.data_ref().clone());
+    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
 
     assert_eq!(Some(bb("A")), got);
 
@@ -292,10 +292,10 @@ impl TestContext {
 /// ```
 pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Result<(Rotbl, Vec<BlockMeta>)> {
     let kvs = maplit::btreemap! {
-        ss("a") => TSeqValue::new(1,false, bb("A")),
-        ss("b") => TSeqValue::new(2,true, bb("B")),
-        ss("c") => TSeqValue::new(2,true, bb("C")),
-        ss("d") => TSeqValue::new(2,true, bb("D")),
+        ss("a") => SeqMarked::new(1,false, bb("A")),
+        ss("b") => SeqMarked::new(2,true, bb("B")),
+        ss("c") => SeqMarked::new(2,true, bb("C")),
+        ss("d") => SeqMarked::new(2,true, bb("D")),
     };
 
     let t = Rotbl::create_table(db, path, 12, 5, "hello", kvs)?;
@@ -304,14 +304,14 @@ pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Resu
     index_data.push(BlockMeta {
         block_num: 0,
         offset: 113,
-        size: 138,
+        size: 151,
         first_key: ss("a"),
         last_key: ss("c"),
     });
     index_data.push(BlockMeta {
         block_num: 1,
-        offset: 251,
-        size: 84,
+        offset: 264,
+        size: 87,
         first_key: ss("d"),
         last_key: ss("d"),
     });

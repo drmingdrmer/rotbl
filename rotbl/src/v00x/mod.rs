@@ -2,5 +2,7 @@
 
 mod var_len_array;
 
+#[allow(unused_imports)]
 pub use var_len_array::RawVLArray;
+#[allow(unused_imports)]
 pub use var_len_array::RawVLArrayBuilder;

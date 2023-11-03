@@ -10,6 +10,7 @@ mod config;
 mod db;
 mod footer;
 mod header;
+mod marked;
 mod range;
 mod rotbl;
 mod rotbl_io;
@@ -17,7 +18,6 @@ mod rotbl_io_get;
 mod rotbl_io_stream;
 mod rotbl_meta;
 pub(crate) mod testing;
-mod tseq;
 mod with_checksum;
 
 pub use block_id::BlockId;
@@ -28,9 +28,9 @@ pub use config::BlockConfig;
 pub use config::Config;
 pub use db::DB;
 pub use footer::Footer;
+pub use marked::Marked;
+pub use marked::SeqMarked;
 pub use rotbl_meta::RotblMeta;
-pub use tseq::TSeq;
-pub use tseq::TSeqValue;
 
 pub use crate::v001::rotbl::Rotbl;
 

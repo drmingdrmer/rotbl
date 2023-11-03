@@ -7,7 +7,7 @@ use std::task::Poll;
 use crate::v001::block::Block;
 use crate::v001::block_id::BlockId;
 use crate::v001::rotbl_io::IOPort;
-use crate::v001::tseq::TSeqValue;
+use crate::v001::SeqMarked;
 
 /// A [`Future`] that returns a value from the rotbl table.
 ///
@@ -24,7 +24,7 @@ pub struct Get<'a> {
 }
 
 impl<'a> Future for Get<'a> {
-    type Output = Option<TSeqValue>;
+    type Output = Option<SeqMarked>;
 
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output>
     where Self: 'a {

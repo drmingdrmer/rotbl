@@ -8,8 +8,8 @@ use futures::Stream;
 use crate::v001::block_id::BlockId;
 use crate::v001::block_index::BlockMeta;
 use crate::v001::rotbl_io::IOPort;
-use crate::v001::tseq::TSeqValue;
 use crate::v001::BlockStream;
+use crate::v001::SeqMarked;
 
 #[derive(Clone, Copy)]
 pub(crate) enum State {
@@ -57,7 +57,7 @@ impl<'a> TableStream<'a> {
 impl<'a> Stream for TableStream<'a>
 where Self: 'a
 {
-    type Item = (String, TSeqValue);
+    type Item = (String, SeqMarked);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         loop {

@@ -13,15 +13,15 @@ use crate::v001::block_encoding_meta::BlockEncodingMeta;
 use crate::v001::checksum_reader::ChecksumReader;
 use crate::v001::checksum_writer::ChecksumWriter;
 use crate::v001::header::Header;
-use crate::v001::tseq::TSeqValue;
+use crate::v001::SeqMarked;
 use crate::version::Version;
 
 pub struct BlockIter<'a> {
-    inner: Range<'a, String, TSeqValue>,
+    inner: Range<'a, String, SeqMarked>,
 }
 
 impl<'a> Iterator for BlockIter<'a> {
-    type Item = (&'a String, &'a TSeqValue);
+    type Item = (&'a String, &'a SeqMarked);
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.next()
@@ -36,11 +36,11 @@ pub struct Block {
 
     meta: BlockEncodingMeta,
 
-    data: BTreeMap<String, TSeqValue>,
+    data: BTreeMap<String, SeqMarked>,
 }
 
 impl Block {
-    pub fn new(block_num: u32, data: BTreeMap<String, TSeqValue>) -> Self {
+    pub fn new(block_num: u32, data: BTreeMap<String, SeqMarked>) -> Self {
         let header = Header::new(Type::Block, Version::V001);
         let meta = BlockEncodingMeta::new(block_num, 0);
         Self { header, meta, data }
@@ -50,7 +50,7 @@ impl Block {
         self.meta.data_encoded_size()
     }
 
-    pub fn get(&self, key: &str) -> Option<&TSeqValue> {
+    pub fn get(&self, key: &str) -> Option<&SeqMarked> {
         self.data.get(key)
     }
 
@@ -125,13 +125,13 @@ mod tests {
     use crate::v001::testing::ss;
     use crate::v001::testing::test_codec;
     use crate::v001::testing::vec_chain;
-    use crate::v001::tseq::TSeqValue;
+    use crate::v001::SeqMarked;
 
     #[test]
     fn test_block_codec() -> anyhow::Result<()> {
         let block_data = maplit::btreemap! {
-            ss("a") => TSeqValue::new(1,false, bb("A")),
-            ss("b") => TSeqValue::new(2,true, bb("B")),
+            ss("a") => SeqMarked::new(1,false, bb("A")),
+            ss("b") => SeqMarked::new(2,true, bb("B")),
         };
         let mut block = Block::new(5, block_data.clone());
 
@@ -148,12 +148,14 @@ mod tests {
                 0, 0, 0, 0, 0, 0, 0, 1, // header.version
                 0, 0, 0, 0, 225, 115, 139, 228, // header checksum
                 0, 0, 0, 0, 0, 0, 0, 5, // meta.block_num
-                0, 0, 0, 0, 0, 0, 0, 55, // meta.data_encoded_size
-                0, 0, 0, 0, 30, 145, 171, 21, // meta checksum
+                0, 0, 0, 0, 0, 0, 0, 65, // meta.data_encoded_size
+                0, 0, 0, 0, //
+                167, 247, 127, 28, // meta checksum
             ],
-            bbs([r#"{"a":{"tseq":2,"data":[65]},"b":{"tseq":5,"data":[66]}}"#]), // data
+            bbs([r#"{"a":{"seq":1,"t":{"Normal":[65]}},"b":{"seq":2,"t":"TombStone"}}"#]), // data
             vec![
-                0, 0, 0, 0, 107, 10, 188, 6, // block checksum
+                0, 0, 0, 0, //
+                44, 83, 156, 157, // block checksum
             ],
         ]);
         assert_eq!(encoded, b);
@@ -169,21 +171,21 @@ mod tests {
     #[test]
     fn test_block_get_range() -> anyhow::Result<()> {
         let block_data = maplit::btreemap! {
-            ss("a") => TSeqValue::new(1,false, bb("A")),
-            ss("b") => TSeqValue::new(2,true, bb("B")),
-            ss("c") => TSeqValue::new(3,true, bb("C")),
-            ss("d") => TSeqValue::new(4,true, bb("D")),
+            ss("a") => SeqMarked::new(1,false, bb("A")),
+            ss("b") => SeqMarked::new(2,true, bb("B")),
+            ss("c") => SeqMarked::new(3,true, bb("C")),
+            ss("d") => SeqMarked::new(4,true, bb("D")),
         };
         let block = Block::new(5, block_data.clone());
 
         assert_eq!(None, block.get("z"));
-        assert_eq!(Some(&TSeqValue::new(1, false, bb("A"))), block.get("a"));
+        assert_eq!(Some(&SeqMarked::new(1, false, bb("A"))), block.get("a"));
 
         let got = block.range(ss("b")..ss("e")).collect::<Vec<_>>();
         assert_eq!(got, vec![
-            (&ss("b"), &TSeqValue::new(2, true, bb("B"))),
-            (&ss("c"), &TSeqValue::new(3, true, bb("C"))),
-            (&ss("d"), &TSeqValue::new(4, true, bb("D"))),
+            (&ss("b"), &SeqMarked::new(2, true, bb("B"))),
+            (&ss("c"), &SeqMarked::new(3, true, bb("C"))),
+            (&ss("d"), &SeqMarked::new(4, true, bb("D"))),
         ]);
 
         Ok(())

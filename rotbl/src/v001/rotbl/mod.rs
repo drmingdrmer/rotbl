@@ -8,7 +8,6 @@ use std::fs;
 use std::io;
 use std::io::Read;
 use std::io::Seek;
-use std::ops::RangeBounds;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -31,8 +30,8 @@ use crate::v001::range::RangeArg;
 use crate::v001::rotbl_io::IODriver;
 use crate::v001::rotbl_io::IOPort;
 use crate::v001::rotbl_meta::RotblMeta;
-use crate::v001::tseq::TSeqValue;
 use crate::v001::with_checksum::WithChecksum;
+use crate::v001::SeqMarked;
 use crate::version::Version;
 
 #[derive(Debug)]
@@ -77,7 +76,7 @@ impl Rotbl {
         table_id: u32,
         seq: u64,
         user_data: impl ToString,
-        kvs: impl IntoIterator<Item = (String, TSeqValue)>,
+        kvs: impl IntoIterator<Item = (String, SeqMarked)>,
     ) -> Result<Rotbl, io::Error> {
         let mut n = 0;
 
@@ -264,7 +263,7 @@ impl Rotbl {
         }
     }
 
-    pub async fn get(&self, key: &str) -> Result<Option<TSeqValue>, io::Error> {
+    pub async fn get(&self, key: &str) -> Result<Option<SeqMarked>, io::Error> {
         let block_num = self.block_index.lookup(key).map(|x| x.block_num);
 
         let Some(block_num) = block_num else {
@@ -280,11 +279,11 @@ impl Rotbl {
     pub fn range(
         self: &Arc<Self>,
         range: impl RangeArg<String>,
-    ) -> BoxStream<'static, Result<(String, TSeqValue), io::Error>> {
+    ) -> BoxStream<'static, Result<(String, SeqMarked), io::Error>> {
         self.clone().do_range(range)
     }
 
-    #[futures_async_stream::try_stream(boxed, ok = (String, TSeqValue), error = io::Error)]
+    #[futures_async_stream::try_stream(boxed, ok = (String, SeqMarked), error = io::Error)]
     async fn do_range(self: Arc<Self>, range: impl RangeArg<String>) {
         let block_metas = self.block_index.lookup_range(range.clone()).to_vec();
 

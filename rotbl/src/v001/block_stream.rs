@@ -9,7 +9,7 @@ use futures::Stream;
 
 use crate::v001::block::Block;
 use crate::v001::block::BlockIter;
-use crate::v001::tseq::TSeqValue;
+use crate::v001::SeqMarked;
 
 /// A stream of key-value pairs in a block.
 ///
@@ -57,7 +57,7 @@ impl BlockStream {
     /// Returns the next key-value pair in the block.
     ///
     /// This method wraps unsafe operation and provide lifetime safety.
-    fn next(self: Pin<&mut Self>) -> Option<(&String, &TSeqValue)> {
+    fn next(self: Pin<&mut Self>) -> Option<(&String, &SeqMarked)> {
         // Safety: We do not move the mutable reference Thus Pin is safe.
         let it = unsafe { &mut self.get_unchecked_mut().iter };
         it.next()
@@ -66,7 +66,7 @@ impl BlockStream {
 
 /// This stream always returns `Ready` thus it is purely a `generator`.
 impl Stream for BlockStream {
-    type Item = (String, TSeqValue);
+    type Item = (String, SeqMarked);
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let next = self.next().map(|(k, v)| (k.clone(), v.clone()));
@@ -87,16 +87,16 @@ mod tests {
     use crate::v001::testing::bb;
     use crate::v001::testing::ss;
     use crate::v001::testing::ss_vec;
-    use crate::v001::tseq::TSeqValue;
+    use crate::v001::SeqMarked;
 
     #[test]
     fn test_block_stream() -> anyhow::Result<()> {
         //
         let block_data = maplit::btreemap! {
-            ss("a") => TSeqValue::new(1, false, bb("A")),
-            ss("b") => TSeqValue::new(2, true,  bb("B")),
-            ss("c") => TSeqValue::new(3, true,  bb("C")),
-            ss("d") => TSeqValue::new(4, true,  bb("D")),
+            ss("a") => SeqMarked::new(1, false, bb("A")),
+            ss("b") => SeqMarked::new(2, true,  bb("B")),
+            ss("c") => SeqMarked::new(3, true,  bb("C")),
+            ss("d") => SeqMarked::new(4, true,  bb("D")),
         };
 
         let block = Block::new(5, block_data.clone());
