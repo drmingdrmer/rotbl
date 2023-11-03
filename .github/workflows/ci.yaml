@@ -42,8 +42,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - toolchain: "stable"
-            features: ""
+          # futures_async_stream requires nightly.
+          # - toolchain: "stable"
+          #   features: ""
 
           - toolchain: "nightly"
             features: ""
@@ -62,7 +63,7 @@ jobs:
 
       # - A store with defensive checks returns error when unexpected accesses are sent to RaftStore.
       # - Raft should not depend on defensive error to work correctly.
-      - name: Test crate `openraft/`
+      - name: Test
         uses: actions-rs/cargo@v1
         with:
           command: test
@@ -74,14 +75,14 @@ jobs:
           RUST_BACKTRACE: full
 
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: "ut-${{ matrix.toolchain }}-${{ matrix.features }}"
-          path: |
-            openraft/_log/
-            tests/_log/
+#      - name: Upload artifact
+#        uses: actions/upload-artifact@v3
+#        if: failure()
+#        with:
+#          name: "ut-${{ matrix.toolchain }}-${{ matrix.features }}"
+#          path: |
+#            openraft/_log/
+#            tests/_log/
 
 
   lint:
