@@ -27,17 +27,6 @@ pub struct SeqMarked<D = Vec<u8>> {
 }
 
 impl<D> SeqMarked<D> {
-    pub fn new(seq: u64, tombstone: bool, data: D) -> Self {
-        Self {
-            seq,
-            t: if tombstone {
-                Marked::TombStone
-            } else {
-                Marked::Normal(data)
-            },
-        }
-    }
-
     pub fn new_normal(seq: u64, data: D) -> Self {
         Self {
             seq,
