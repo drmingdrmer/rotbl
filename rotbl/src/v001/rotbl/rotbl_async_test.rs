@@ -23,12 +23,12 @@ async fn test_rotbl_async_get() -> anyhow::Result<()> {
 
     // Get from non-existent block
 
-    let got = t.get("e").await?.and_then(SeqMarked::into_data);
+    let got = t.get("e").await?;
     assert_eq!(None, got);
 
     // Get non-existent from existent block
 
-    let got = t.get("a1").await?.and_then(SeqMarked::into_data);
+    let got = t.get("a1").await?;
     assert_eq!(None, got);
 
     // Get from non-cached block

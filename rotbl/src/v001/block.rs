@@ -148,14 +148,14 @@ mod tests {
                 0, 0, 0, 0, 0, 0, 0, 1, // header.version
                 0, 0, 0, 0, 225, 115, 139, 228, // header checksum
                 0, 0, 0, 0, 0, 0, 0, 5, // meta.block_num
-                0, 0, 0, 0, 0, 0, 0, 65, // meta.data_encoded_size
+                0, 0, 0, 0, 0, 0, 0, 75, // meta.data_encoded_size
                 0, 0, 0, 0, //
-                167, 247, 127, 28, // meta checksum
+                71, 34, 150, 2, // meta checksum
             ],
-            bbs([r#"{"a":{"seq":1,"t":{"Normal":[65]}},"b":{"seq":2,"t":"TombStone"}}"#]), // data
+            bbs([r#"{"a":{"seq":1,"marked":{"Normal":[65]}},"b":{"seq":2,"marked":"TombStone"}}"#]), // data
             vec![
                 0, 0, 0, 0, //
-                44, 83, 156, 157, // block checksum
+                47, 6, 92, 61, // block checksum
             ],
         ]);
         assert_eq!(encoded, b);

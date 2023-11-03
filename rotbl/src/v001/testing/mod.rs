@@ -4,6 +4,7 @@ use std::any::type_name;
 use std::fmt::Debug;
 
 use crate::codec::Codec;
+use crate::v001::SeqMarked;
 
 /// Test decoding from correct data and corrupted data.
 pub(crate) fn test_codec<D: Codec + PartialEq + Debug>(encoded_bytes: &[u8], v: &D) -> anyhow::Result<()> {
@@ -69,10 +70,21 @@ pub(crate) fn bbs(x: impl IntoIterator<Item = impl ToString>) -> Vec<u8> {
     vec_chain(r)
 }
 
+/// Concat multiple Vec into one.
 pub(crate) fn vec_chain<T>(vectors: impl IntoIterator<Item = Vec<T>>) -> Vec<T> {
     let mut r = vec![];
     for v in vectors {
         r.extend(v);
     }
     r
+}
+
+/// Create a `SeqMarked::Normal`.
+pub(crate) fn norm<D>(seq: u64, d: D) -> SeqMarked<D> {
+    SeqMarked::new_normal(seq, d)
+}
+
+/// Create a `SeqMarked::TombStone`.
+pub(crate) fn ts<D>(seq: u64) -> SeqMarked<D> {
+    SeqMarked::new_tombstone(seq)
 }

@@ -40,7 +40,7 @@ fn test_create_table() -> anyhow::Result<()> {
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(359));
+    assert_eq!(t.footer, Footer::new(379));
 
     Ok(())
 }
@@ -67,7 +67,7 @@ fn test_open_table() -> anyhow::Result<()> {
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(359));
+    assert_eq!(t.footer, Footer::new(379));
 
     Ok(())
 }
@@ -128,14 +128,14 @@ fn test_rotbl_io_driver_get() -> anyhow::Result<()> {
     // Get from non-existent block
 
     let fu = drv.get("e");
-    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
+    let got = drv.block_on(fu)?;
 
     assert_eq!(None, got);
 
     // Get non-existent from existent block
 
     let fu = drv.get("a1");
-    let got = drv.block_on(fu)?.and_then(SeqMarked::into_data);
+    let got = drv.block_on(fu)?;
 
     assert_eq!(None, got);
 
@@ -304,14 +304,14 @@ pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Resu
     index_data.push(BlockMeta {
         block_num: 0,
         offset: 113,
-        size: 155,
+        size: 170,
         first_key: ss("a"),
         last_key: ss("c"),
     });
     index_data.push(BlockMeta {
         block_num: 1,
-        offset: 268,
-        size: 91,
+        offset: 283,
+        size: 96,
         first_key: ss("d"),
         last_key: ss("d"),
     });
