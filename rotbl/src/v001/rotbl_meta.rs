@@ -16,6 +16,7 @@ use crate::version::Version;
 #[derive(PartialEq, Eq)]
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct RotblMetaPayload {
+    /// The global seq number of keys
     seq: u64,
     user_data: String,
 }
@@ -35,8 +36,8 @@ impl RotblMetaPayload {
 pub struct RotblMeta {
     header: Header,
 
-    /// The size of the encoded `data` part of a block.
-    pub(crate) data_encoded_size: u64,
+    /// The size of the encoded `payload` part.
+    pub(crate) payload_encoded_size: u64,
 
     payload: RotblMetaPayload,
 }
@@ -47,13 +48,13 @@ impl RotblMeta {
         let meta = RotblMetaPayload::new(seq, user_data);
         Self {
             header,
-            data_encoded_size: 0,
+            payload_encoded_size: 0,
             payload: meta,
         }
     }
 
-    pub fn data_encoded_size(&self) -> u64 {
-        self.data_encoded_size
+    pub fn payload_encoded_size(&self) -> u64 {
+        self.payload_encoded_size
     }
 
     pub fn seq(&self) -> u64 {
@@ -94,9 +95,9 @@ impl Codec for RotblMeta {
         let header = Header::decode(&mut cr)?;
         assert_eq!(header, Header::new(Type::RotblMeta, Version::V001));
 
-        let data_size = WithChecksum::<u64>::decode(&mut cr)?.into_inner();
+        let payload_size = WithChecksum::<u64>::decode(&mut cr)?.into_inner();
 
-        let mut buf = buf::new_uninitialized(data_size as usize);
+        let mut buf = buf::new_uninitialized(payload_size as usize);
         cr.read_exact(&mut buf)?;
         cr.verify_checksum()?;
 
@@ -104,7 +105,7 @@ impl Codec for RotblMeta {
 
         let block = Self {
             header,
-            data_encoded_size: data_size,
+            payload_encoded_size: payload_size,
             payload: data,
         };
 
@@ -153,7 +154,7 @@ mod tests {
         assert_eq!(encoded, b);
 
         // Block does not know about the encoded size when it is created.
-        rotbl_meta.data_encoded_size = encoded_size;
+        rotbl_meta.payload_encoded_size = encoded_size;
 
         test_codec(&b[..], &rotbl_meta)?;
 
