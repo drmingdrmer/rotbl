@@ -9,10 +9,10 @@ use std::task::Poll;
 
 use crate::v001::block::Block;
 use crate::v001::block_id::BlockId;
+use crate::v001::rotbl::io_driver_get::Get;
+use crate::v001::rotbl::io_driver_stream::State;
+use crate::v001::rotbl::io_driver_stream::TableStream;
 use crate::v001::rotbl::Rotbl;
-use crate::v001::rotbl_io_get::Get;
-use crate::v001::rotbl_io_stream::State;
-use crate::v001::rotbl_io_stream::TableStream;
 
 pub(crate) type BlockIOPayload = IOPayload<BlockId, Arc<Block>>;
 

@@ -1,3 +1,7 @@
+pub mod io_driver;
+pub mod io_driver_get;
+pub mod io_driver_stream;
+
 #[cfg(test)]
 mod rotbl_async_test;
 #[cfg(test)]
@@ -27,8 +31,8 @@ use crate::v001::db::DB;
 use crate::v001::footer::Footer;
 use crate::v001::header::Header;
 use crate::v001::range::RangeArg;
-use crate::v001::rotbl_io::IODriver;
-use crate::v001::rotbl_io::IOPort;
+use crate::v001::rotbl::io_driver::IODriver;
+use crate::v001::rotbl::io_driver::IOPort;
 use crate::v001::rotbl_meta::RotblMeta;
 use crate::v001::with_checksum::WithChecksum;
 use crate::v001::SeqMarked;
@@ -74,7 +78,7 @@ impl Rotbl {
         db: &DB,
         path: P,
         table_id: u32,
-        rotbl_meta: RotblMeta,
+        meta: RotblMeta,
         kvs: impl IntoIterator<Item = (String, SeqMarked)>,
     ) -> Result<Rotbl, io::Error> {
         let mut n = 0;
@@ -92,7 +96,8 @@ impl Rotbl {
         n += tid.encode(&mut f)?;
 
         // Write RotblMeta
-        n += rotbl_meta.encode(&mut f)?;
+
+        n += meta.encode(&mut f)?;
 
         // Writ blocks
 
@@ -142,7 +147,7 @@ impl Rotbl {
             file: Arc::new(Mutex::new(f)),
             header,
             table_id,
-            meta: rotbl_meta,
+            meta,
             footer,
             block_index,
         };
@@ -153,36 +158,34 @@ impl Rotbl {
     pub fn open<P: AsRef<Path>>(db: &DB, path: P) -> Result<Self, io::Error> {
         let mut f = fs::OpenOptions::new().create(false).create_new(false).read(true).open(&path)?;
 
-        // Header
-
-        let header = Header::decode(&mut f)?;
-        assert_eq!(header, Header::new(Type::Rotbl, Version::V001));
-
-        // TableId
+        let header = {
+            let header = Header::decode(&mut f)?;
+            assert_eq!(header, Header::new(Type::Rotbl, Version::V001));
+            header
+        };
 
         let table_id = WithChecksum::<u32>::decode(&mut f)?.into_inner();
 
-        // Meta
         let meta = RotblMeta::decode(&mut f)?;
 
-        // Footer
+        let footer = {
+            f.seek(io::SeekFrom::End(-(Footer::ENCODED_SIZE as i64)))?;
+            let footer = Footer::decode(&mut f)?;
+            footer
+        };
 
-        f.seek(io::SeekFrom::End(-(Footer::ENCODED_SIZE as i64)))?;
-        let footer = Footer::decode(&mut f)?;
+        let block_index = {
+            let index_offset = footer.block_index_offset;
+            let index_size = f.metadata()?.len() - Footer::ENCODED_SIZE - index_offset;
 
-        // block index
+            f.seek(io::SeekFrom::Start(index_offset))?;
 
-        let index_offset = footer.block_index_offset;
-        let index_size = f.metadata()?.len() - Footer::ENCODED_SIZE - index_offset;
+            let mut index_buf = new_uninitialized(index_size as usize);
+            f.read_exact(&mut index_buf)?;
 
-        f.seek(io::SeekFrom::Start(index_offset))?;
-
-        let mut index_buf = new_uninitialized(index_size as usize);
-        f.read_exact(&mut index_buf)?;
-
-        let block_index = BlockIndex::decode(&mut index_buf.as_slice())?;
-
-        //
+            let block_index = BlockIndex::decode(&mut index_buf.as_slice())?;
+            block_index
+        };
 
         let r = Self {
             // db,
@@ -224,7 +227,7 @@ impl Rotbl {
             return Ok(b);
         }
 
-        let block = self.do_load_block(block_num)?;
+        let block = self.load_block_nocache(block_num)?;
 
         cache.insert(block_id, block.clone());
 
@@ -238,7 +241,7 @@ impl Rotbl {
     }
 
     /// Load block from disk without accessing cache.
-    pub(crate) fn do_load_block(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+    pub(crate) fn load_block_nocache(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
         let block_meta = self.block_index.get_index_entry_by_num(block_num).unwrap();
 
         let mut buf = new_uninitialized(block_meta.size as usize);
@@ -261,6 +264,7 @@ impl Rotbl {
         }
     }
 
+    /// Return the value of the specified key.
     pub async fn get(&self, key: &str) -> Result<Option<SeqMarked>, io::Error> {
         let block_num = self.block_index.lookup(key).map(|x| x.block_num);
 
@@ -273,16 +277,13 @@ impl Rotbl {
         Ok(v)
     }
 
-    /// Return a static `Stream` that iterating kvs in the specified range.
-    pub fn range(
-        self: &Arc<Self>,
-        range: impl RangeArg<String>,
-    ) -> BoxStream<'static, Result<(String, SeqMarked), io::Error>> {
+    /// Return a `'static` `Stream` that iterating kvs in the specified range.
+    pub fn range(self: &Arc<Self>, range: impl RangeArg) -> BoxStream<'static, Result<(String, SeqMarked), io::Error>> {
         self.clone().do_range(range)
     }
 
     #[futures_async_stream::try_stream(boxed, ok = (String, SeqMarked), error = io::Error)]
-    async fn do_range(self: Arc<Self>, range: impl RangeArg<String>) {
+    async fn do_range(self: Arc<Self>, range: impl RangeArg) {
         let block_metas = self.block_index.lookup_range(range.clone()).to_vec();
 
         for m in block_metas {

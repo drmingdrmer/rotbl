@@ -60,6 +60,10 @@ impl<D> SeqMarked<D> {
         }
     }
 
+    pub fn seq(&self) -> u64 {
+        self.seq
+    }
+
     pub fn data_ref(&self) -> Option<&D> {
         match self.marked {
             Marked::Normal(ref d) => Some(d),

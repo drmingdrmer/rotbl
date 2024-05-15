@@ -6,7 +6,7 @@ use std::task::Poll;
 
 use crate::v001::block::Block;
 use crate::v001::block_id::BlockId;
-use crate::v001::rotbl_io::IOPort;
+use crate::v001::rotbl::io_driver::IOPort;
 use crate::v001::SeqMarked;
 
 /// A [`Future`] that returns a value from the rotbl table.

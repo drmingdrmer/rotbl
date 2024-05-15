@@ -7,7 +7,7 @@ use futures::Stream;
 
 use crate::v001::block_id::BlockId;
 use crate::v001::block_index::BlockMeta;
-use crate::v001::rotbl_io::IOPort;
+use crate::v001::rotbl::io_driver::IOPort;
 use crate::v001::BlockStream;
 use crate::v001::SeqMarked;
 
