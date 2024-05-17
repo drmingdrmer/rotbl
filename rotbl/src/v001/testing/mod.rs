@@ -7,7 +7,10 @@ use crate::codec::Codec;
 use crate::v001::SeqMarked;
 
 /// Test decoding from correct data and corrupted data.
-pub(crate) fn test_codec<D: Codec + PartialEq + Debug>(encoded_bytes: &[u8], v: &D) -> anyhow::Result<()> {
+pub(crate) fn test_codec<D: Codec + PartialEq + Debug>(
+    encoded_bytes: &[u8],
+    v: &D,
+) -> anyhow::Result<()> {
     // convert `correct` to string if possible
     let correct_str = String::from_utf8_lossy(encoded_bytes);
     println!("correct data: {}", correct_str);

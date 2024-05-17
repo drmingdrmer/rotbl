@@ -9,12 +9,14 @@ use tempfile::TempDir;
 
 use crate::typ::Type;
 use crate::v001::block_index::BlockIndex;
-use crate::v001::block_index::BlockMeta;
+use crate::v001::block_index::BlockIndexEntry;
 use crate::v001::config::Config;
 use crate::v001::db::DB;
 use crate::v001::footer::Footer;
 use crate::v001::header::Header;
+use crate::v001::rotbl::stat::RotblStat;
 use crate::v001::rotbl::Rotbl;
+use crate::v001::segment::Segment;
 use crate::v001::testing::bb;
 use crate::v001::testing::ss;
 use crate::v001::RotblMeta;
@@ -31,7 +33,8 @@ fn test_create_table() -> anyhow::Result<()> {
     println!("{:?}", t);
 
     assert_eq!(t.header, Header::new(Type::Rotbl, Version::V001));
-    assert_eq!(t.table_id, 12);
+    // assert_eq!(t.table_id, 12);
+    assert_eq!(t.table_id, 0, "table_id is disabled in this version");
     assert_eq!(t.meta.user_data(), "hello");
     assert_eq!(t.meta.seq(), 5);
     assert_eq!(t.block_index, BlockIndex {
@@ -41,7 +44,17 @@ fn test_create_table() -> anyhow::Result<()> {
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(379));
+    assert_eq!(t.stat, RotblStat {
+        block_num: 2,
+        key_num: 4,
+        data_size: 136,
+        index_size: 189,
+    });
+
+    assert_eq!(
+        t.footer,
+        Footer::new(Segment::new(249, 189), Segment::new(438, 84))
+    );
 
     Ok(())
 }
@@ -55,20 +68,31 @@ fn test_open_table() -> anyhow::Result<()> {
 
     println!("{:?}", t);
 
-    let t = Rotbl::open(ctx.db(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.config(), p.join("foo.rot"))?;
 
     assert_eq!(t.header, Header::new(Type::Rotbl, Version::V001));
-    assert_eq!(t.table_id, 12);
+    // assert_eq!(t.table_id, 12);
+    assert_eq!(t.table_id, 0, "table_id is disabled in this version");
     assert_eq!(t.meta.user_data(), "hello");
     assert_eq!(t.meta.seq(), 5);
     assert_eq!(t.block_index, BlockIndex {
         header: Header::new(Type::BlockIndex, Version::V001),
         // It is set when decode()
-        data_encoded_size: 142,
+        data_encoded_size: 141,
         data: index_data.clone(),
     });
 
-    assert_eq!(t.footer, Footer::new(379));
+    assert_eq!(t.stat, RotblStat {
+        block_num: 2,
+        key_num: 4,
+        data_size: 136,
+        index_size: 189,
+    });
+
+    assert_eq!(
+        t.footer,
+        Footer::new(Segment::new(249, 189), Segment::new(438, 84))
+    );
 
     Ok(())
 }
@@ -122,7 +146,7 @@ fn test_rotbl_io_driver_get() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
 
-    let t = Rotbl::open(ctx.db(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.config(), p.join("foo.rot"))?;
 
     let drv = t.io_driver();
 
@@ -164,7 +188,7 @@ fn test_rotbl_io_driver_range() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
 
-    let t = Rotbl::open(ctx.db(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.config(), p.join("foo.rot"))?;
 
     let drv = t.io_driver();
 
@@ -194,7 +218,7 @@ fn test_rotbl_io_driver_run_range() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
 
-    let t = Rotbl::open(ctx.db(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.config(), p.join("foo.rot"))?;
 
     let drv = t.io_driver();
 
@@ -214,7 +238,7 @@ fn test_rotbl_io_driver_run_range() -> anyhow::Result<()> {
 #[test]
 fn test_rotbl_io_driver_get_without_cache() -> anyhow::Result<()> {
     let mut config = Config::default();
-    config.block.max_items = Some(3);
+    config.block_config.max_items = Some(3);
     config.disable_cache();
 
     let ctx = TestContext::with_config(config)?;
@@ -222,7 +246,7 @@ fn test_rotbl_io_driver_get_without_cache() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
 
-    let t = Rotbl::open(ctx.db(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.config(), p.join("foo.rot"))?;
 
     let drv = t.io_driver();
 
@@ -240,7 +264,16 @@ fn test_rotbl_io_driver_get_without_cache() -> anyhow::Result<()> {
     })?;
 
     assert_eq!(
-        vec![ss("a"), ss("b"), ss("c"), ss("d"), ss("a"), ss("b"), ss("c"), ss("d"),],
+        vec![
+            ss("a"),
+            ss("b"),
+            ss("c"),
+            ss("d"),
+            ss("a"),
+            ss("b"),
+            ss("c"),
+            ss("d"),
+        ],
         got_keys
     );
 
@@ -258,7 +291,7 @@ pub(crate) struct TestContext {
 impl TestContext {
     pub(crate) fn new() -> anyhow::Result<TestContext> {
         let mut config = Config::default();
-        config.block.max_items = Some(3);
+        config.block_config.max_items = Some(3);
 
         Self::with_config(config)
     }
@@ -267,11 +300,19 @@ impl TestContext {
         let db = DB::open(config.clone())?;
         let temp_dir = tempfile::tempdir()?;
 
-        Ok(TestContext { config, db, temp_dir })
+        Ok(TestContext {
+            config,
+            db,
+            temp_dir,
+        })
     }
 
     pub(crate) fn db(&self) -> &Arc<DB> {
         &self.db
+    }
+
+    pub(crate) fn config(&self) -> Config {
+        self.config.clone()
     }
 
     pub(crate) fn db_path(&self) -> &Path {
@@ -291,7 +332,10 @@ impl TestContext {
 /// d: 2, true, D,
 /// ---
 /// ```
-pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Result<(Rotbl, Vec<BlockMeta>)> {
+pub(crate) fn create_tmp_table<P: AsRef<Path>>(
+    db: &DB,
+    path: P,
+) -> anyhow::Result<(Rotbl, Vec<BlockIndexEntry>)> {
     let kvs = maplit::btreemap! {
         ss("a") => SeqMarked::new_tombstone(1),
         ss("b") => SeqMarked::new_normal(2, bb("B")),
@@ -300,20 +344,20 @@ pub(crate) fn create_tmp_table<P: AsRef<Path>>(db: &DB, path: P) -> anyhow::Resu
     };
 
     let rotbl_meta = RotblMeta::new(5, "hello");
-    let t = Rotbl::create_table(db, path, 12, rotbl_meta, kvs)?;
+    let t = Rotbl::create_table(db.config(), path, rotbl_meta, kvs)?;
 
     let mut index_data = Vec::new();
-    index_data.push(BlockMeta {
+    index_data.push(BlockIndexEntry {
         block_num: 0,
         offset: 113,
-        size: 170,
+        size: 73,
         first_key: ss("a"),
         last_key: ss("c"),
     });
-    index_data.push(BlockMeta {
+    index_data.push(BlockIndexEntry {
         block_num: 1,
-        offset: 283,
-        size: 96,
+        offset: 186,
+        size: 63,
         first_key: ss("d"),
         last_key: ss("d"),
     });

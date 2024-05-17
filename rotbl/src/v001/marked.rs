@@ -10,6 +10,7 @@
 #[derive(PartialEq, Eq)]
 #[derive(PartialOrd, Ord)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub enum Marked<D> {
     // Keep `Normal` as the first variant so that `TombStone` is greater than `Normal`.
     Normal(D),
@@ -28,6 +29,7 @@ pub enum Marked<D> {
 #[derive(PartialEq, Eq)]
 #[derive(PartialOrd, Ord)]
 #[derive(serde::Serialize, serde::Deserialize)]
+#[derive(bincode::Encode, bincode::Decode)]
 pub struct SeqMarked<D = Vec<u8>> {
     // Keep the `seq` as the first field so that it can be compared first.
     seq: u64,

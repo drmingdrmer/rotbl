@@ -61,7 +61,7 @@ impl Codec for BlockEncodingMeta {
 
         let block_num = cr.read_u64::<BigEndian>()? as u32;
         let data_encoded_size = cr.read_u64::<BigEndian>()?;
-        cr.verify_checksum()?;
+        cr.verify_checksum(|| "BLockEncodingMeta::decode()")?;
 
         let meta = Self::new(block_num, data_encoded_size);
 

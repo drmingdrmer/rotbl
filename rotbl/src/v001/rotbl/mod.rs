@@ -1,13 +1,13 @@
+pub mod access_stat;
+pub mod builder;
 pub mod io_driver;
 pub mod io_driver_get;
 pub mod io_driver_stream;
+pub mod stat;
 
 #[cfg(test)]
-mod rotbl_async_test;
-#[cfg(test)]
-mod rotbl_test;
+mod tests;
 
-use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::io::Read;
@@ -17,43 +17,64 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use futures::stream::BoxStream;
-use itertools::Itertools;
 
 use crate::buf::new_uninitialized;
 use crate::codec::Codec;
+use crate::io_util;
 use crate::typ::Type;
 use crate::v001::block::Block;
 use crate::v001::block_cache::BlockCache;
 use crate::v001::block_id::BlockId;
 use crate::v001::block_index::BlockIndex;
-use crate::v001::block_index::BlockMeta;
 use crate::v001::db::DB;
 use crate::v001::footer::Footer;
 use crate::v001::header::Header;
 use crate::v001::range::RangeArg;
+use crate::v001::rotbl::access_stat::AccessStat;
 use crate::v001::rotbl::io_driver::IODriver;
 use crate::v001::rotbl::io_driver::IOPort;
 use crate::v001::rotbl_meta::RotblMeta;
 use crate::v001::with_checksum::WithChecksum;
+use crate::v001::CacheStat;
+use crate::v001::Config;
 use crate::v001::SeqMarked;
 use crate::version::Version;
 
+/// A readonly table.
+///
+/// The table is organized as follows, and every part has its own checksum embedded:
+///
+/// ```text
+/// | Header
+/// | TableId with checksum
+/// | Meta
+/// | Block 0
+/// | Block 1
+/// | ...
+/// | BlockIndex
+/// | Stat
+/// | Footer
+/// ```
 #[derive(Debug)]
 pub struct Rotbl {
     /// The db this table belongs
-    // db: Arc<DB>,
     block_cache: Arc<Mutex<BlockCache>>,
 
-    file: Arc<Mutex<fs::File>>,
+    file: Arc<Mutex<io::BufReader<fs::File>>>,
 
     #[allow(dead_code)]
     header: Header,
 
+    // not used yet.
     pub(crate) table_id: u32,
 
     meta: RotblMeta,
 
     pub(crate) block_index: BlockIndex,
+
+    stat: stat::RotblStat,
+
+    access_stat: AccessStat,
 
     #[allow(dead_code)]
     footer: Footer,
@@ -61,102 +82,25 @@ pub struct Rotbl {
 
 impl Rotbl {
     /// Create a new table from a series of key-value pairs
-    ///
-    /// The table is organized as follows, and every part has its own checksum embedded:
-    ///
-    /// ```text
-    /// | Header
-    /// | TableId with checksum
-    /// | Meta
-    /// | Block 0
-    /// | Block 1
-    /// | ...
-    /// | BlockIndex
-    /// | Footer
-    /// ```
     pub fn create_table<P: AsRef<Path>>(
-        db: &DB,
+        config: Config,
         path: P,
-        table_id: u32,
         meta: RotblMeta,
         kvs: impl IntoIterator<Item = (String, SeqMarked)>,
     ) -> Result<Rotbl, io::Error> {
-        let mut n = 0;
-
-        let mut f = fs::OpenOptions::new().create(true).create_new(true).read(true).write(true).open(&path)?;
-
-        // Write header
-
-        let header = Header::new(Type::Rotbl, Version::V001);
-        n += header.encode(&mut f)?;
-
-        // Write table id
-
-        let tid = WithChecksum::new(table_id);
-        n += tid.encode(&mut f)?;
-
-        // Write RotblMeta
-
-        n += meta.encode(&mut f)?;
-
-        // Writ blocks
-
-        let mut index = Vec::new();
-
-        let chunk = db.config.block.max_items.unwrap();
-
-        let kv_chunks = kvs.into_iter().chunks(chunk);
-        for (block_num, chunk_entries) in kv_chunks.into_iter().enumerate() {
-            let bt: BTreeMap<_, _> = BTreeMap::from_iter(chunk_entries.into_iter());
-
-            let first_key: String = bt.first_key_value().unwrap().0.clone();
-            let last_key: String = bt.last_key_value().unwrap().0.clone();
-
-            let block = Block::new(block_num as u32, bt);
-            let offset = n as u64;
-            let block_size = block.encode(&mut f)?;
-            n += block_size;
-
-            let index_entry = BlockMeta {
-                block_num: block_num as u32,
-                offset,
-                size: block_size as u64,
-                first_key,
-                last_key,
-            };
-
-            index.push(index_entry);
+        let mut builder = builder::Builder::new(config, path, meta)?;
+        for (k, v) in kvs {
+            builder.append_kv(k, v)?;
         }
+        let t = builder.commit()?;
 
-        let block_index_offset = n;
-
-        // Write block index
-
-        let block_index = BlockIndex::new(index);
-        n += block_index.encode(&mut f)?;
-
-        // Write footer
-
-        let footer = Footer::new(block_index_offset as u64);
-        n += footer.encode(&mut f)?;
-
-        let _ = n;
-
-        let r = Rotbl {
-            block_cache: db.block_cache.clone(),
-            file: Arc::new(Mutex::new(f)),
-            header,
-            table_id,
-            meta,
-            footer,
-            block_index,
-        };
-
-        Ok(r)
+        Ok(t)
     }
 
-    pub fn open<P: AsRef<Path>>(db: &DB, path: P) -> Result<Self, io::Error> {
-        let mut f = fs::OpenOptions::new().create(false).create_new(false).read(true).open(&path)?;
+    pub fn open<P: AsRef<Path>>(config: Config, path: P) -> Result<Self, io::Error> {
+        let f = fs::OpenOptions::new().create(false).create_new(false).read(true).open(&path)?;
+
+        let mut f = io::BufReader::with_capacity(16 * 1024 * 1024, f);
 
         let header = {
             let header = Header::decode(&mut f)?;
@@ -170,32 +114,31 @@ impl Rotbl {
 
         let footer = {
             f.seek(io::SeekFrom::End(-(Footer::ENCODED_SIZE as i64)))?;
-            let footer = Footer::decode(&mut f)?;
-            footer
+            Footer::decode(&mut f)?
         };
 
         let block_index = {
-            let index_offset = footer.block_index_offset;
-            let index_size = f.metadata()?.len() - Footer::ENCODED_SIZE - index_offset;
-
-            f.seek(io::SeekFrom::Start(index_offset))?;
-
-            let mut index_buf = new_uninitialized(index_size as usize);
-            f.read_exact(&mut index_buf)?;
-
-            let block_index = BlockIndex::decode(&mut index_buf.as_slice())?;
-            block_index
+            let buf = io_util::read_segment(&mut f, footer.block_index_segment)?;
+            BlockIndex::decode(&mut buf.as_slice())?
         };
 
+        let stat = {
+            let buf = io_util::read_segment(&mut f, footer.stat_segment)?;
+            stat::RotblStat::decode(&mut buf.as_slice())?
+        };
+
+        let cache = DB::new_cache(config.clone());
+
         let r = Self {
-            // db,
-            block_cache: db.block_cache.clone(),
+            block_cache: cache,
+            table_id,
             header,
             file: Arc::new(Mutex::new(f)),
-            footer,
-            block_index,
-            table_id,
             meta,
+            block_index,
+            stat,
+            access_stat: Default::default(),
+            footer,
         };
 
         Ok(r)
@@ -205,12 +148,33 @@ impl Rotbl {
         &self.meta
     }
 
+    pub fn stat(&self) -> &stat::RotblStat {
+        &self.stat
+    }
+
+    pub fn access_stat(&self) -> &AccessStat {
+        &self.access_stat
+    }
+
+    pub fn cache_stat(&self) -> CacheStat {
+        let c = self.block_cache.lock().unwrap();
+        CacheStat::new(c.len() as u64, c.size() as u64)
+    }
+
     /// Return the block if it is in the cache.
     pub fn get_block(&self, block_num: u32) -> Option<Arc<Block>> {
         let block_id = BlockId::new(self.table_id, block_num);
 
-        let mut c = self.block_cache.lock().unwrap();
-        c.get(&block_id).cloned()
+        let b = {
+            let mut c = self.block_cache.lock().unwrap();
+            c.get(&block_id).cloned()
+        };
+
+        if b.is_some() {
+            self.access_stat.hit_block(true);
+        }
+
+        b
     }
 
     /// Load a block from disk and fill it into the cache.
@@ -224,6 +188,7 @@ impl Rotbl {
         // Hold the lock until the block is loaded.
         let mut cache = self.block_cache.lock().unwrap();
         if let Some(b) = cache.get(&block_id).cloned() {
+            self.access_stat.hit_block(true);
             return Ok(b);
         }
 
@@ -254,6 +219,9 @@ impl Rotbl {
 
         let block = Block::decode(&mut buf.as_slice())?;
         let block = Arc::new(block);
+
+        self.access_stat.hit_block(false);
+
         Ok(block)
     }
 
@@ -278,7 +246,10 @@ impl Rotbl {
     }
 
     /// Return a `'static` `Stream` that iterating kvs in the specified range.
-    pub fn range(self: &Arc<Self>, range: impl RangeArg) -> BoxStream<'static, Result<(String, SeqMarked), io::Error>> {
+    pub fn range(
+        self: &Arc<Self>,
+        range: impl RangeArg,
+    ) -> BoxStream<'static, Result<(String, SeqMarked), io::Error>> {
         self.clone().do_range(range)
     }
 

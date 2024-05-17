@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use futures::TryStreamExt;
 
-use crate::v001::rotbl::rotbl_test::create_tmp_table;
-use crate::v001::rotbl::rotbl_test::TestContext;
+use crate::v001::rotbl::tests::rotbl_test::create_tmp_table;
+use crate::v001::rotbl::tests::rotbl_test::TestContext;
 use crate::v001::rotbl::Rotbl;
 use crate::v001::testing::bb;
 use crate::v001::testing::ss;
@@ -19,7 +19,7 @@ async fn test_rotbl_async_get() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
 
-    let t = Rotbl::open(ctx.db(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.db().config.clone(), p.join("foo.rot"))?;
 
     // Get from non-existent block
 
@@ -57,7 +57,7 @@ async fn test_rotbl_async_range() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
 
-    let t = Rotbl::open(ctx.db(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.db().config.clone(), p.join("foo.rot"))?;
     let t = Arc::new(t);
 
     // Full range

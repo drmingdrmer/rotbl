@@ -2,50 +2,48 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
-use byteorder::BigEndian;
-use byteorder::ReadBytesExt;
-use byteorder::WriteBytesExt;
-
 use crate::codec::Codec;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
+use crate::v001::segment::Segment;
 
 #[derive(Debug)]
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 #[derive(PartialEq, Eq)]
 pub struct Footer {
-    pub(crate) block_index_offset: u64,
+    /// Offset and size of the block index.
+    pub(crate) block_index_segment: Segment,
+
+    /// Offset and size of the stat.
+    pub(crate) stat_segment: Segment,
 }
 
 impl Footer {
-    pub fn new(chunk_index_offset: u64) -> Self {
+    pub(crate) fn new(block_index: Segment, stat: Segment) -> Self {
         Self {
-            block_index_offset: chunk_index_offset,
+            block_index_segment: block_index,
+            stat_segment: stat,
         }
     }
 }
 
 impl Codec for Footer {
-    const ENCODED_SIZE: u64 = 8 + 8;
+    const ENCODED_SIZE: u64 = Segment::ENCODED_SIZE * 2;
 
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 
-        let mut cw = ChecksumWriter::new(&mut w);
-        cw.write_u64::<BigEndian>(self.block_index_offset)?;
-        n += 8;
-        n += cw.write_checksum()?;
+        n += self.block_index_segment.encode(&mut w)?;
+        n += self.stat_segment.encode(&mut w)?;
 
         Ok(n)
     }
 
     fn decode<R: Read>(mut r: R) -> Result<Self, Error> {
-        let mut cr = ChecksumReader::new(&mut r);
-        let chunk_index_offset = cr.read_u64::<BigEndian>()?;
-        cr.verify_checksum()?;
+        let block_index = Segment::decode(&mut r)?;
+        let stat = Segment::decode(&mut r)?;
 
         Ok(Self {
-            block_index_offset: chunk_index_offset,
+            block_index_segment: block_index,
+            stat_segment: stat,
         })
     }
 }
@@ -53,15 +51,20 @@ impl Codec for Footer {
 #[cfg(test)]
 mod tests {
     use crate::v001::footer::Footer;
+    use crate::v001::segment::Segment;
     use crate::v001::testing::test_codec;
 
     #[test]
     fn test_footer_codec() -> anyhow::Result<()> {
-        let f = Footer::new(5);
+        let f = Footer::new(Segment::new(5, 10), Segment::new(15, 20));
 
         let b = vec![
-            0, 0, 0, 0, 0, 0, 0, 5, //
-            0, 0, 0, 0, 21, 72, 43, 230, // checksum
+            0, 0, 0, 0, 0, 0, 0, 5, // offset
+            0, 0, 0, 0, 0, 0, 0, 10, // size
+            0, 0, 0, 0, 70, 249, 231, 4, // checksum
+            0, 0, 0, 0, 0, 0, 0, 15, // offset
+            0, 0, 0, 0, 0, 0, 0, 20, // size
+            0, 0, 0, 0, 41, 216, 80, 249, // checksum
         ];
 
         test_codec(b.as_slice(), &f)?;

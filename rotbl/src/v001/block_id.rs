@@ -10,7 +10,10 @@ pub struct BlockId {
 
 impl BlockId {
     pub fn new(table_id: u32, block_num: u32) -> Self {
-        Self { table_id, block_num }
+        Self {
+            table_id,
+            block_num,
+        }
     }
 
     pub fn table_id(&self) -> u32 {

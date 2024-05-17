@@ -45,7 +45,12 @@ impl Codec for Version {
 
     fn decode<R: io::Read>(mut r: R) -> Result<Self, io::Error> {
         let ver = r.read_u64::<BigEndian>()?;
-        Self::from_u64(ver).map_err(|_| io::Error::new(io::ErrorKind::InvalidData, format!("invalid version:{}", ver)))
+        Self::from_u64(ver).map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!("invalid version:{}", ver),
+            )
+        })
     }
 }
 

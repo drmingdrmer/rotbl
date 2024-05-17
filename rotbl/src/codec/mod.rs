@@ -4,7 +4,7 @@ use std::mem::size_of;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 
-pub trait Codec: Sized {
+pub(crate) trait Codec: Sized {
     /// The size of the encoded data if Self is fix sized.
     const ENCODED_SIZE: u64;
 

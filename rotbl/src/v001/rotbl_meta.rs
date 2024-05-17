@@ -36,9 +36,6 @@ impl RotblMetaPayload {
 pub struct RotblMeta {
     header: Header,
 
-    /// The size of the encoded `payload` part.
-    pub(crate) payload_encoded_size: u64,
-
     payload: RotblMetaPayload,
 }
 
@@ -48,13 +45,8 @@ impl RotblMeta {
         let meta = RotblMetaPayload::new(seq, user_data);
         Self {
             header,
-            payload_encoded_size: 0,
             payload: meta,
         }
-    }
-
-    pub fn payload_encoded_size(&self) -> u64 {
-        self.payload_encoded_size
     }
 
     pub fn seq(&self) -> u64 {
@@ -72,18 +64,20 @@ impl Codec for RotblMeta {
 
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0usize;
-        let encoded_data = serde_json::to_vec(&self.payload)?;
-        let encoded_size = encoded_data.len() as u64;
 
         let mut cw = ChecksumWriter::new(&mut w);
 
         n += self.header.encode(&mut cw)?;
+
+        let encoded_data = serde_json::to_vec(&self.payload)?;
+        let encoded_size = encoded_data.len() as u64;
 
         let s = WithChecksum::new(encoded_size);
         n += s.encode(&mut cw)?;
 
         cw.write_all(&encoded_data)?;
         n += encoded_size as usize;
+
         n += cw.write_checksum()?;
 
         Ok(n)
@@ -99,13 +93,13 @@ impl Codec for RotblMeta {
 
         let mut buf = buf::new_uninitialized(payload_size as usize);
         cr.read_exact(&mut buf)?;
-        cr.verify_checksum()?;
+
+        cr.verify_checksum(|| "RotblMeta::decode()")?;
 
         let data = serde_json::from_slice(&buf)?;
 
         let block = Self {
             header,
-            payload_encoded_size: payload_size,
             payload: data,
         };
 
@@ -117,9 +111,9 @@ impl Codec for RotblMeta {
 #[allow(clippy::redundant_clone)]
 mod tests {
 
+    #[allow(unused_imports)]
     use pretty_assertions::assert_eq;
 
-    use crate::codec::Codec;
     use crate::v001::rotbl_meta::RotblMeta;
     use crate::v001::testing::bbs;
     use crate::v001::testing::test_codec;
@@ -128,15 +122,7 @@ mod tests {
     #[test]
     fn test_rotbl_meta_codec() -> anyhow::Result<()> {
         let user_data = "hello";
-        let mut rotbl_meta = RotblMeta::new(5, user_data);
-
-        let encoded_payload = serde_json::to_vec(&rotbl_meta.payload)?;
-        let encoded_size = encoded_payload.len() as u64;
-
-        let mut b = Vec::new();
-        let n = rotbl_meta.encode(&mut b)?;
-        assert_eq!(n, b.len());
-        println!("b = {:?}", b);
+        let rotbl_meta = RotblMeta::new(5, user_data);
 
         let encoded = vec_chain([
             bbs(["rotbl_m\0"]), // header.type
@@ -151,12 +137,8 @@ mod tests {
                 0, 0, 0, 0, 230, 11, 170, 59, // checksum
             ],
         ]);
-        assert_eq!(encoded, b);
 
-        // Block does not know about the encoded size when it is created.
-        rotbl_meta.payload_encoded_size = encoded_size;
-
-        test_codec(&b[..], &rotbl_meta)?;
+        test_codec(&encoded, &rotbl_meta)?;
 
         Ok(())
     }

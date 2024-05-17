@@ -32,7 +32,7 @@ trailing_comma          = "Vertical"
 overflow_delimited_expr = true
 wrap_comments           = true
 comment_width           = 100
-max_width               = 120
+max_width               = 100
 # inline_attribute_width  = 80
 
 merge_derives           = false

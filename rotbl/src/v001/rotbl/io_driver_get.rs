@@ -14,7 +14,7 @@ use crate::v001::SeqMarked;
 /// If returns a `Ready` if the block containing the key is already in cache,
 /// or returns a `Pending` if it needs to load the block from [`IODriver`].
 ///
-/// [`IODriver`]: `crate::v001::rotbl_io::IODriver`
+/// [`IODriver`]: `crate::v001::rotbl::io_driver::IODriver`
 pub struct Get<'a> {
     pub(crate) waiting_for_block: bool,
     pub(crate) io: &'a IOPort,

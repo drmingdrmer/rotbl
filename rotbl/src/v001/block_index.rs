@@ -19,7 +19,7 @@ use crate::version::Version;
 #[derive(Clone)]
 #[derive(PartialEq, Eq)]
 #[derive(serde::Serialize, serde::Deserialize)]
-pub struct BlockMeta {
+pub struct BlockIndexEntry {
     pub(crate) block_num: u32,
 
     /// Offset in the a rotbl, starting from 0.
@@ -48,11 +48,11 @@ pub struct BlockIndex {
     /// The size of the encoded `data` part.
     pub(crate) data_encoded_size: u64,
 
-    pub(crate) data: Vec<BlockMeta>,
+    pub(crate) data: Vec<BlockIndexEntry>,
 }
 
 impl BlockIndex {
-    pub fn new(data: Vec<BlockMeta>) -> Self {
+    pub fn new(data: Vec<BlockIndexEntry>) -> Self {
         Self {
             header: Header::new(Type::BlockIndex, Version::V001),
             data_encoded_size: 0,
@@ -61,7 +61,7 @@ impl BlockIndex {
     }
 
     /// Returns block index entries that overlap with the given range.
-    pub fn lookup_range<R>(&self, range: R) -> &[BlockMeta]
+    pub fn lookup_range<R>(&self, range: R) -> &[BlockIndexEntry]
     where R: RangeBounds<String> {
         // Just a helper function to make the code below more readable.
         fn contains(range: &(Bound<&String>, Bound<&String>), s: &String) -> bool {
@@ -78,7 +78,7 @@ impl BlockIndex {
     }
 
     /// Return a block index entry that contains the given key.
-    pub fn lookup(&self, key: &str) -> Option<&BlockMeta> {
+    pub fn lookup(&self, key: &str) -> Option<&BlockIndexEntry> {
         let i = self.data.partition_point(|ent| key > ent.last_key.as_str());
         let ent = self.data.get(i)?;
         if key >= ent.first_key.as_str() {
@@ -88,7 +88,7 @@ impl BlockIndex {
         }
     }
 
-    pub fn get_index_entry_by_num(&self, block_num: u32) -> Option<&BlockMeta> {
+    pub fn get_index_entry_by_num(&self, block_num: u32) -> Option<&BlockIndexEntry> {
         self.data.get(block_num as usize)
     }
 }
@@ -128,7 +128,7 @@ impl Codec for BlockIndex {
         let mut buf = new_uninitialized(encoded_size as usize);
         cr.read_exact(&mut buf)?;
 
-        cr.verify_checksum()?;
+        cr.verify_checksum(|| "BlockIndex::decode()")?;
 
         let data = serde_json::from_slice(&buf)?;
 
@@ -152,7 +152,7 @@ mod tests {
 
     use crate::codec::Codec;
     use crate::v001::block_index::BlockIndex;
-    use crate::v001::block_index::BlockMeta;
+    use crate::v001::block_index::BlockIndexEntry;
     use crate::v001::testing::bbs;
     use crate::v001::testing::ss;
     use crate::v001::testing::test_codec;
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn test_block_index_lookup_range() -> anyhow::Result<()> {
-        fn to_block_nums(r: &[BlockMeta]) -> Vec<u32> {
+        fn to_block_nums(r: &[BlockIndexEntry]) -> Vec<u32> {
             r.iter().map(|ent| ent.block_num).collect()
         }
 
@@ -250,7 +250,7 @@ mod tests {
 
     #[test]
     fn test_block_index_codec() -> anyhow::Result<()> {
-        let ent1 = BlockMeta {
+        let ent1 = BlockIndexEntry {
             block_num: 0,
             offset: 2,
             size: 3,
@@ -258,7 +258,7 @@ mod tests {
             last_key: ss("p"),
         };
 
-        let ent2 = BlockMeta {
+        let ent2 = BlockIndexEntry {
             block_num: 1,
             offset: 5,
             size: 6,
@@ -310,7 +310,7 @@ mod tests {
 
     /// Build a index of `[a..=p, p1..=z]`
     fn create_testing_block_index() -> BlockIndex {
-        let ent1 = BlockMeta {
+        let ent1 = BlockIndexEntry {
             block_num: 0,
             offset: 2,
             size: 3,
@@ -318,7 +318,7 @@ mod tests {
             last_key: ss("p"),
         };
 
-        let ent2 = BlockMeta {
+        let ent2 = BlockIndexEntry {
             block_num: 1,
             offset: 5,
             size: 6,

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io;
 
 use byteorder::BigEndian;
@@ -30,7 +31,7 @@ where R: io::Read
 
     /// Read the crc32 checksum from the least significant 32 bits of a `u64` in BigEndian,
     /// and compare it with the calculated checksum.
-    pub fn verify_checksum(self) -> io::Result<()> {
+    pub fn verify_checksum<D: fmt::Display>(self, context: impl Fn() -> D) -> io::Result<()> {
         let mut r = self.inner;
         let actual = self.hasher.finalize() as u64;
 
@@ -38,7 +39,12 @@ where R: io::Read
         if actual != got {
             Err(io::Error::new(
                 io::ErrorKind::InvalidData,
-                format!("crc32 checksum mismatch: expected {:x}, got {:x}", actual, got),
+                format!(
+                    "crc32 checksum mismatch: expected {:x}, got {:x}, while {}",
+                    actual,
+                    got,
+                    context()
+                ),
             ))
         } else {
             Ok(())
@@ -96,7 +102,7 @@ mod tests {
             let mut r = super::ChecksumReader::new(&b[..]);
             let mut read_buf = [0u8; 6];
             r.read_exact(&mut read_buf)?;
-            r.verify_checksum()?; // No error
+            r.verify_checksum(|| "")?; // No error
         }
 
         // Verify against wrong checksum
@@ -107,7 +113,7 @@ mod tests {
             let mut r = super::ChecksumReader::new(&b[..]);
             let mut read_buf = [0; 6];
             r.read_exact(&mut read_buf)?;
-            let res = r.verify_checksum(); // checksum error
+            let res = r.verify_checksum(|| ""); // checksum error
             assert!(res.is_err());
         }
 

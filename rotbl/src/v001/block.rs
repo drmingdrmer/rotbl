@@ -9,6 +9,7 @@ use std::ops::RangeBounds;
 use crate::buf;
 use crate::codec::Codec;
 use crate::typ::Type;
+use crate::v001::bincode_config::bincode_config;
 use crate::v001::block_encoding_meta::BlockEncodingMeta;
 use crate::v001::checksum_reader::ChecksumReader;
 use crate::v001::checksum_writer::ChecksumWriter;
@@ -72,7 +73,8 @@ impl Codec for Block {
 
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0usize;
-        let encoded_data = serde_json::to_vec(&self.data)?;
+        let encoded_data = bincode::encode_to_vec(&self.data, bincode_config())
+            .map_err(|e| Error::new(std::io::ErrorKind::InvalidData, e))?;
         let encoded_size = encoded_data.len() as u64;
 
         let mut cw = ChecksumWriter::new(&mut w);
@@ -102,9 +104,10 @@ impl Codec for Block {
 
         let mut buf = buf::new_uninitialized(data_size);
         cr.read_exact(&mut buf)?;
-        cr.verify_checksum()?;
+        cr.verify_checksum(|| "Block::decode()")?;
 
-        let data = serde_json::from_slice(&buf)?;
+        let (data, _size) = bincode::decode_from_slice(&buf, bincode_config())
+            .map_err(|e| Error::new(std::io::ErrorKind::InvalidData, e))?;
 
         let block = Self { header, meta, data };
 
@@ -119,9 +122,9 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::codec::Codec;
+    use crate::v001::bincode_config::bincode_config;
     use crate::v001::block::Block;
     use crate::v001::testing::bb;
-    use crate::v001::testing::bbs;
     use crate::v001::testing::ss;
     use crate::v001::testing::test_codec;
     use crate::v001::testing::vec_chain;
@@ -139,8 +142,9 @@ mod tests {
         let n = block.encode(&mut b)?;
         assert_eq!(n, b.len());
 
-        let encoded_data = serde_json::to_string(&block_data)?;
-        println!("encoded data: {} {}", encoded_data.len(), encoded_data);
+        // let encoded_data = serde_json::to_string(&block_data)?;
+        let encoded_data = bincode::encode_to_vec(&block_data, bincode_config()).unwrap();
+        println!("encoded data: {} {:?}", encoded_data.len(), encoded_data);
 
         let encoded = vec_chain([
             vec![
@@ -148,16 +152,29 @@ mod tests {
                 0, 0, 0, 0, 0, 0, 0, 1, // header.version
                 0, 0, 0, 0, 225, 115, 139, 228, // header checksum
                 0, 0, 0, 0, 0, 0, 0, 5, // meta.block_num
-                0, 0, 0, 0, 0, 0, 0, 75, // meta.data_encoded_size
+                0, 0, 0, 0, 0, 0, 0, 11, // meta.data_encoded_size
                 0, 0, 0, 0, //
-                71, 34, 150, 2, // meta checksum
+                49, 254, 215, 146, // meta checksum
             ],
-            bbs([r#"{"a":{"seq":1,"marked":{"Normal":[65]}},"b":{"seq":2,"marked":"TombStone"}}"#]), // data
+            // block data:
+            vec![
+                2, // number of entries?
+                //
+                1, 97, // key1: "a"
+                1,  // seq
+                0,  // normal
+                1, 65, // "A"
+                //
+                1, 98, // key2: "b"
+                2,  // seq
+                1,  // tombstone
+            ],
             vec![
                 0, 0, 0, 0, //
-                47, 6, 92, 61, // block checksum
+                155, 10, 213, 39, // block checksum
             ],
         ]);
+        println!("encoded: {:?}", b);
         assert_eq!(encoded, b);
 
         // Block does not know about the encoded size when it is created.

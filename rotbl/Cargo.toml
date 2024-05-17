@@ -18,7 +18,7 @@ repository           = { workspace = true }
 # data flow
 futures              = { workspace = true }
 futures-async-stream = { workspace = true }
-itertools            = { workspace = true }
+#itertools            = { workspace = true }
 
 # runtime
 tokio                = { workspace = true }
@@ -30,15 +30,23 @@ lru-cache            = { workspace = true }
 anyhow               = { workspace = true }
 
 # serialization
+bincode              = { workspace = true }
 byteorder            = { workspace = true }
 bytes                = { workspace = true }
 crc32fast            = { workspace = true }
 serde                = { workspace = true }
 serde_json           = { workspace = true }
+#borsh                = { workspace = true }
+#msgpacker            = { workspace = true }
+#rmp-serde            = { workspace = true }
+
+#byte-unit            = { workspace = true }
+num-format            = { workspace = true }
 
 # testing
 
 [dev-dependencies]
+criterion            = { workspace = true }
 maplit               = { workspace = true }
 pretty_assertions    = { workspace = true }
 tempfile             = { workspace = true }

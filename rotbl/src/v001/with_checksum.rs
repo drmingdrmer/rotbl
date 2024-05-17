@@ -43,7 +43,7 @@ where T: Codec
         let mut cr = ChecksumReader::new(r);
 
         let data = T::decode(&mut cr)?;
-        cr.verify_checksum()?;
+        cr.verify_checksum(|| "WithChecksum::decode()")?;
 
         let meta = Self { data };
 

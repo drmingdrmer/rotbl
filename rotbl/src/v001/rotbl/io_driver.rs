@@ -153,7 +153,10 @@ impl<'a> IODriver<'a> {
     }
 
     /// Handle the IO request and send the IO response, both via `self.io_port`.
-    fn handle_io(rotbl: &Rotbl, io_port: &Arc<Mutex<Option<BlockIOPayload>>>) -> Result<(), io::Error> {
+    fn handle_io(
+        rotbl: &Rotbl,
+        io_port: &Arc<Mutex<Option<BlockIOPayload>>>,
+    ) -> Result<(), io::Error> {
         let block_id = {
             let mut g = io_port.lock().unwrap();
             let port = g.take();

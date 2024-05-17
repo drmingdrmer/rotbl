@@ -41,7 +41,7 @@ impl Codec for Header {
 
         let t = Type::decode(&mut cr)?;
         let version = Version::decode(&mut cr)?;
-        cr.verify_checksum()?;
+        cr.verify_checksum(|| "Header::decode()")?;
 
         Ok(Self { typ: t, version })
     }

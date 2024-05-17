@@ -6,7 +6,7 @@ use std::task::Poll;
 use futures::Stream;
 
 use crate::v001::block_id::BlockId;
-use crate::v001::block_index::BlockMeta;
+use crate::v001::block_index::BlockIndexEntry;
 use crate::v001::rotbl::io_driver::IOPort;
 use crate::v001::BlockStream;
 use crate::v001::SeqMarked;
@@ -31,7 +31,7 @@ pub struct TableStream<'a> {
     pub(crate) range: (Bound<String>, Bound<String>),
 
     pub(crate) table_id: u32,
-    pub(crate) block_index: std::slice::Iter<'a, BlockMeta>,
+    pub(crate) block_index: std::slice::Iter<'a, BlockIndexEntry>,
 
     pub(crate) block_stream: Option<BlockStream>,
 }
