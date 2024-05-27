@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::fs::File;
 use std::io;
+use std::io::Seek;
 use std::io::Write;
 use std::path::Path;
 use std::sync::Arc;
@@ -167,9 +168,11 @@ impl Builder {
 
         self.f.flush()?;
 
-        let f = self.f.into_inner().map_err(|e| e.into_error())?;
+        let mut f = self.f.into_inner().map_err(|e| e.into_error())?;
 
         f.sync_all()?;
+
+        let file_size = f.seek(io::SeekFrom::End(0))?;
 
         let reader = io::BufReader::with_capacity(DEFAULT_READ_BUF_SIZE, f);
 
@@ -178,6 +181,7 @@ impl Builder {
         let r = Rotbl {
             block_cache,
             file: Arc::new(Mutex::new(reader)),
+            file_size,
             header: self.header,
             table_id: self.table_id,
             meta: self.meta,

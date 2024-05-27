@@ -62,6 +62,9 @@ pub struct Rotbl {
 
     file: Arc<Mutex<io::BufReader<fs::File>>>,
 
+    /// On disk file size in bytes
+    file_size: u64,
+
     #[allow(dead_code)]
     header: Header,
 
@@ -112,10 +115,8 @@ impl Rotbl {
 
         let meta = RotblMeta::decode(&mut f)?;
 
-        let footer = {
-            f.seek(io::SeekFrom::End(-(Footer::ENCODED_SIZE as i64)))?;
-            Footer::decode(&mut f)?
-        };
+        let footer_offset = f.seek(io::SeekFrom::End(-(Footer::ENCODED_SIZE as i64)))?;
+        let footer = Footer::decode(&mut f)?;
 
         let block_index = {
             let buf = io_util::read_segment(&mut f, footer.block_index_segment)?;
@@ -134,6 +135,7 @@ impl Rotbl {
             table_id,
             header,
             file: Arc::new(Mutex::new(f)),
+            file_size: footer_offset + Footer::ENCODED_SIZE,
             meta,
             block_index,
             stat,
@@ -142,6 +144,10 @@ impl Rotbl {
         };
 
         Ok(r)
+    }
+
+    pub fn file_size(&self) -> u64 {
+        self.file_size
     }
 
     pub fn meta(&self) -> &RotblMeta {

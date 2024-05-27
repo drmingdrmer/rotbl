@@ -56,6 +56,8 @@ fn test_create_table() -> anyhow::Result<()> {
         Footer::new(Segment::new(249, 189), Segment::new(438, 84))
     );
 
+    assert_eq!(570, t.file_size);
+
     Ok(())
 }
 
@@ -93,6 +95,7 @@ fn test_open_table() -> anyhow::Result<()> {
         t.footer,
         Footer::new(Segment::new(249, 189), Segment::new(438, 84))
     );
+    assert_eq!(570, t.file_size);
 
     Ok(())
 }
