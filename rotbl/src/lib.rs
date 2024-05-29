@@ -11,13 +11,13 @@
 //!   # // remove ./foo if exists
 //!   # let _ = std::fs::remove_file("./foo");
 //!   let r = {
-//!     let mut b = Builder::new(config, "./foo", RotblMeta::new(1, "hello")).unwrap();
+//!     let mut b = Builder::new(config, "./foo").unwrap();
 //!
 //!     // keys must be sorted
 //!     b.append_kv("bar", SeqMarked::new_normal(1, b"bar".to_vec())).unwrap();
 //!     b.append_kv("foo", SeqMarked::new_normal(2, b"foo".to_vec())).unwrap();
 //!
-//!     Arc::new(b.commit().unwrap())
+//!     Arc::new(b.commit(RotblMeta::new(1, "hello")).unwrap())
 //!   };
 //!
 //!   // Read the value back

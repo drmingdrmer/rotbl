@@ -33,7 +33,6 @@ pub struct Builder {
     offset: usize,
     header: Header,
     table_id: u32,
-    meta: RotblMeta,
 
     chunk_size: usize,
 
@@ -46,11 +45,7 @@ pub struct Builder {
 }
 
 impl Builder {
-    pub fn new<P: AsRef<Path>>(
-        config: Config,
-        path: P,
-        meta: RotblMeta,
-    ) -> Result<Self, io::Error> {
+    pub fn new<P: AsRef<Path>>(config: Config, path: P) -> Result<Self, io::Error> {
         // Table id is not supported yet in this version,
         // and is always 0.
         let table_id = 0;
@@ -78,7 +73,6 @@ impl Builder {
             offset: 0,
             header: Header::new(Type::Rotbl, Version::V001),
             table_id,
-            meta,
             chunk_size,
             stat: RotblStat::default(),
             this_chunk: Vec::with_capacity(chunk_size),
@@ -90,8 +84,6 @@ impl Builder {
 
         let tid = WithChecksum::new(builder.table_id);
         builder.offset += tid.encode(&mut builder.f)?;
-
-        builder.offset += builder.meta.encode(&mut builder.f)?;
 
         Ok(builder)
     }
@@ -140,7 +132,7 @@ impl Builder {
         Ok(())
     }
 
-    pub fn commit(mut self) -> Result<Rotbl, io::Error> {
+    pub fn commit(mut self, rotbl_meta: RotblMeta) -> Result<Rotbl, io::Error> {
         if !self.this_chunk.is_empty() {
             let chunk = std::mem::take(&mut self.this_chunk);
             self.write_chunk(chunk)?;
@@ -154,16 +146,21 @@ impl Builder {
         let blog_index_seg = Segment::new(self.offset as u64, self.stat.index_size);
         self.offset += self.stat.index_size as usize;
 
+        // Write Meta
+
+        let meta_size = rotbl_meta.encode(&mut self.f)?;
+        let meta_seg = Segment::new(self.offset as u64, meta_size as u64);
+        self.offset += meta_size;
+
         // Write Stat
 
         let stat_size = self.stat.encode(&mut self.f)?;
-
         let stat_seg = Segment::new(self.offset as u64, stat_size as u64);
         self.offset += stat_size;
 
         // Write footer
 
-        let footer = Footer::new(blog_index_seg, stat_seg);
+        let footer = Footer::new(blog_index_seg, meta_seg, stat_seg);
         self.offset += footer.encode(&mut self.f)?;
 
         self.f.flush()?;
@@ -184,7 +181,7 @@ impl Builder {
             file_size,
             header: self.header,
             table_id: self.table_id,
-            meta: self.meta,
+            meta: rotbl_meta,
             block_index,
             stat: self.stat,
             access_stat: Default::default(),

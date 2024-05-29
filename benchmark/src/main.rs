@@ -44,7 +44,7 @@ async fn build(db: &DB) -> Rotbl {
 
     let meta = RotblMeta::new(1, "hello");
 
-    let mut b = Builder::new(db.config(), "./_rotbl/foo", meta).unwrap();
+    let mut b = Builder::new(db.config(), "./_rotbl/foo").unwrap();
 
     let mut k = "a".repeat(key_len);
     let mut v = "a".repeat(val_len);
@@ -63,7 +63,7 @@ async fn build(db: &DB) -> Rotbl {
 
     let start = Instant::now();
 
-    let r = b.commit().unwrap();
+    let r = b.commit(meta).unwrap();
 
     let elapsed = start.elapsed();
     println!("Elapsed commit: {:?}", elapsed);

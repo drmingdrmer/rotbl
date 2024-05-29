@@ -48,15 +48,19 @@ fn test_create_table() -> anyhow::Result<()> {
         block_num: 2,
         key_num: 4,
         data_size: 136,
-        index_size: 189,
+        index_size: 188,
     });
 
     assert_eq!(
         t.footer,
-        Footer::new(Segment::new(249, 189), Segment::new(438, 84))
+        Footer::new(
+            Segment::new(172, 188),
+            Segment::new(360, 77),
+            Segment::new(437, 84)
+        )
     );
 
-    assert_eq!(570, t.file_size);
+    assert_eq!(593, t.file_size);
 
     Ok(())
 }
@@ -80,7 +84,7 @@ fn test_open_table() -> anyhow::Result<()> {
     assert_eq!(t.block_index, BlockIndex {
         header: Header::new(Type::BlockIndex, Version::V001),
         // It is set when decode()
-        data_encoded_size: 141,
+        data_encoded_size: 140,
         data: index_data.clone(),
     });
 
@@ -88,14 +92,18 @@ fn test_open_table() -> anyhow::Result<()> {
         block_num: 2,
         key_num: 4,
         data_size: 136,
-        index_size: 189,
+        index_size: 188,
     });
 
     assert_eq!(
         t.footer,
-        Footer::new(Segment::new(249, 189), Segment::new(438, 84))
+        Footer::new(
+            Segment::new(172, 188),
+            Segment::new(360, 77),
+            Segment::new(437, 84)
+        )
     );
-    assert_eq!(570, t.file_size);
+    assert_eq!(593, t.file_size);
 
     Ok(())
 }
@@ -352,14 +360,14 @@ pub(crate) fn create_tmp_table<P: AsRef<Path>>(
     let mut index_data = Vec::new();
     index_data.push(BlockIndexEntry {
         block_num: 0,
-        offset: 113,
+        offset: 36,
         size: 73,
         first_key: ss("a"),
         last_key: ss("c"),
     });
     index_data.push(BlockIndexEntry {
         block_num: 1,
-        offset: 186,
+        offset: 109,
         size: 63,
         first_key: ss("d"),
         last_key: ss("d"),

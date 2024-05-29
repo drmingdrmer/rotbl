@@ -91,11 +91,11 @@ impl Rotbl {
         meta: RotblMeta,
         kvs: impl IntoIterator<Item = (String, SeqMarked)>,
     ) -> Result<Rotbl, io::Error> {
-        let mut builder = builder::Builder::new(config, path, meta)?;
+        let mut builder = builder::Builder::new(config, path)?;
         for (k, v) in kvs {
             builder.append_kv(k, v)?;
         }
-        let t = builder.commit()?;
+        let t = builder.commit(meta)?;
 
         Ok(t)
     }
@@ -113,14 +113,17 @@ impl Rotbl {
 
         let table_id = WithChecksum::<u32>::decode(&mut f)?.into_inner();
 
-        let meta = RotblMeta::decode(&mut f)?;
-
         let footer_offset = f.seek(io::SeekFrom::End(-(Footer::ENCODED_SIZE as i64)))?;
         let footer = Footer::decode(&mut f)?;
 
         let block_index = {
             let buf = io_util::read_segment(&mut f, footer.block_index_segment)?;
             BlockIndex::decode(&mut buf.as_slice())?
+        };
+
+        let meta = {
+            let buf = io_util::read_segment(&mut f, footer.meta_segment)?;
+            RotblMeta::decode(&mut buf.as_slice())?
         };
 
         let stat = {
