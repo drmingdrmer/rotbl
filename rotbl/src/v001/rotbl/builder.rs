@@ -40,6 +40,8 @@ pub struct Builder {
 
     this_chunk: Vec<(String, SeqMarked)>,
 
+    prev: Option<String>,
+
     f: io::BufWriter<File>,
     index: Vec<BlockIndexEntry>,
 }
@@ -76,6 +78,7 @@ impl Builder {
             chunk_size,
             stat: RotblStat::default(),
             this_chunk: Vec::with_capacity(chunk_size),
+            prev: None,
             f,
             index: Vec::new(),
         };
@@ -89,8 +92,21 @@ impl Builder {
     }
 
     pub fn append_kv(&mut self, k: impl ToString, v: SeqMarked) -> Result<(), io::Error> {
+        let k = k.to_string();
+
+        if self.config.debug_check == Some(true) {
+            assert!(
+                Some(&k) > self.prev.as_ref(),
+                "this key {:?} must be greater than prev {:?}",
+                k,
+                self.prev
+            );
+
+            self.prev = Some(k.clone());
+        }
+
         self.stat.key_num += 1;
-        self.this_chunk.push((k.to_string(), v));
+        self.this_chunk.push((k, v));
 
         if self.this_chunk.len() == self.chunk_size {
             let chunk =

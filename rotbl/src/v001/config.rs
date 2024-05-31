@@ -58,6 +58,7 @@ impl BlockConfig {
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct Config {
+    pub debug_check: Option<bool>,
     pub root_path: String,
     pub block_config: BlockConfig,
     pub block_cache: BlockCacheConfig,
@@ -66,6 +67,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            debug_check: None,
             root_path: "./.rotbl/".to_string(),
             block_config: Default::default(),
             block_cache: Default::default(),
@@ -80,6 +82,11 @@ impl Config {
             root_path,
             ..Default::default()
         }
+    }
+
+    pub fn with_debug_check(mut self, debug_check: bool) -> Self {
+        self.debug_check = Some(debug_check);
+        self
     }
 
     pub fn with_root_path(mut self, root_path: impl ToString) -> Self {
@@ -107,6 +114,7 @@ impl Config {
     }
 
     pub fn fill_default_values(&mut self) {
+        self.debug_check = Some(true);
         self.block_config.fill_default_values();
         self.block_cache.fill_default_values();
     }
