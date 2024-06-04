@@ -33,6 +33,7 @@ pub use footer::Footer;
 pub use marked::Marked;
 pub use marked::SeqMarked;
 pub use rotbl::builder::Builder;
+pub use rotbl::stat;
 pub use rotbl::Rotbl;
 pub use rotbl_meta::RotblMeta;
 
