@@ -62,6 +62,39 @@ impl<D> SeqMarked<D> {
         }
     }
 
+    /// Convert the marked data to a new marked data with a different data type.
+    pub fn map<U>(self, f: impl FnOnce(D) -> U) -> SeqMarked<U> {
+        SeqMarked {
+            seq: self.seq,
+            marked: match self.marked {
+                Marked::Normal(data) => Marked::<U>::Normal(f(data)),
+                Marked::TombStone => Marked::<U>::TombStone,
+            },
+        }
+    }
+
+    /// Convert the marked data to a ref.
+    pub fn as_ref(&self) -> SeqMarked<&D> {
+        SeqMarked {
+            seq: self.seq,
+            marked: match &self.marked {
+                Marked::Normal(data) => Marked::Normal(data),
+                Marked::TombStone => Marked::TombStone,
+            },
+        }
+    }
+
+    /// Return a key to determine which one of the values of the same key are the last inserted.
+    pub fn order_key(&self) -> SeqMarked<()> {
+        SeqMarked {
+            seq: self.seq,
+            marked: match &self.marked {
+                Marked::Normal(_) => Marked::Normal(()),
+                Marked::TombStone => Marked::TombStone,
+            },
+        }
+    }
+
     pub fn seq(&self) -> u64 {
         self.seq
     }
@@ -92,6 +125,43 @@ mod tests {
     use crate::v001::testing::norm;
     use crate::v001::testing::ts;
     use crate::v001::SeqMarked;
+
+    #[test]
+    fn test_map() -> anyhow::Result<()> {
+        let a = norm(1, 1u64);
+        assert_eq!(norm(1, 2u32), a.map(|x| (x * 2) as u32));
+
+        let a = ts::<u64>(1);
+        assert_eq!(ts::<u32>(1), a.map(|x| (x * 2) as u32));
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_as_ref() -> anyhow::Result<()> {
+        let a = norm(1, 1u64);
+        assert_eq!(norm(1, &1u64), a.as_ref());
+
+        let a = ts::<u64>(1);
+        assert_eq!(ts::<&u64>(1), a.as_ref());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_order_key() -> anyhow::Result<()> {
+        assert!(norm(1, 1u64).order_key() == norm(1, 1u64).order_key());
+        assert!(norm(1, 2u64).order_key() == norm(1, 1u64).order_key());
+        assert!(norm(2, 2u64).order_key() > norm(1, 1u64).order_key());
+
+        assert!(ts::<u64>(1).order_key() > norm(1, 1u64).order_key());
+        assert!(ts::<u64>(2).order_key() > norm(1, 1u64).order_key());
+
+        assert!(ts::<u64>(2).order_key() > ts::<u64>(1).order_key());
+        assert!(ts::<u64>(1).order_key() == ts::<u64>(1).order_key());
+
+        Ok(())
+    }
 
     #[test]
     fn test_partial_ord() -> anyhow::Result<()> {
