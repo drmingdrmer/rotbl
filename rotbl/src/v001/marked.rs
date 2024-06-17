@@ -1,3 +1,5 @@
+use std::fmt;
+
 /// Data that can be marked as tombstone.
 ///
 /// ## `PartialOrd` implementation
@@ -111,6 +113,28 @@ impl<D> SeqMarked<D> {
             Marked::Normal(data) => Some(data),
             Marked::TombStone => None,
         }
+    }
+
+    /// Return a struct that implements `fmt::Display` for SeqMarked.
+    pub fn display(&self) -> impl fmt::Display + '_
+    where D: fmt::Debug {
+        struct DisplaySeqMarked<'a, D>(&'a SeqMarked<D>);
+
+        impl<'a, D> fmt::Display for DisplaySeqMarked<'a, D>
+        where D: fmt::Debug
+        {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                write!(f, "seq: {}, ", self.0.seq)?;
+                match &self.0.marked {
+                    Marked::Normal(data) => {
+                        write!(f, "data: {:?}", data)
+                    }
+                    Marked::TombStone => write!(f, "tombstone"),
+                }
+            }
+        }
+
+        DisplaySeqMarked(self)
     }
 }
 

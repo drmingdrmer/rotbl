@@ -43,6 +43,8 @@ serde_json           = { workspace = true }
 #byte-unit            = { workspace = true }
 num-format            = { workspace = true }
 
+clap                  = { workspace = true }
+
 # testing
 
 [dev-dependencies]
@@ -62,3 +64,7 @@ all-features = true
 # Sort modules by appearance order for crate `docs`.
 # https://doc.rust-lang.org/rustdoc/unstable-features.html#--sort-modules-by-appearance-control-how-items-on-module-pages-are-sorted
 rustdoc-args = ["-Z", "unstable-options", "--sort-modules-by-appearance"]
+
+[[bin]]
+name = "dump-v001"
+path = "src/v001/bin/dump.rs"

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::fmt::Debug;
 use std::io;
 use std::io::Read;
@@ -30,6 +31,16 @@ pub struct BlockIndexEntry {
     pub(crate) last_key: String,
 }
 
+impl fmt::Display for BlockIndexEntry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{{ block_num: {:>04}, position: {}+{}, key_range: [\"{}\", \"{}\"] }}",
+            self.block_num, self.offset, self.size, self.first_key, self.last_key
+        )
+    }
+}
+
 /// The block index is a BTreeMap of key to block index entry.
 ///
 /// Encoded data layout:
@@ -58,6 +69,10 @@ impl BlockIndex {
             data_encoded_size: 0,
             data,
         }
+    }
+
+    pub fn iter_index_entries(&self) -> impl Iterator<Item = &BlockIndexEntry> {
+        self.data.iter()
     }
 
     /// Returns block index entries that overlap with the given range.

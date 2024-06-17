@@ -17,6 +17,7 @@ use crate::v001::header::Header;
 use crate::v001::SeqMarked;
 use crate::version::Version;
 
+/// Iterator of key-values inside a block.
 pub struct BlockIter<'a> {
     inner: Range<'a, String, SeqMarked>,
 }

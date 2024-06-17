@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io;
 use std::io::Read;
 use std::io::Write;
@@ -19,6 +20,12 @@ pub struct Header {
 impl Header {
     pub fn new(typ: Type, version: Version) -> Self {
         Self { typ, version }
+    }
+}
+
+impl fmt::Display for Header {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{typ: {:?}, version: {:?}}}", self.typ, self.version)
     }
 }
 

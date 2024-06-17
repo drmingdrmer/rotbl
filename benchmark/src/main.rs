@@ -13,32 +13,40 @@ use rotbl::v001::RotblMeta;
 use rotbl::v001::SeqMarked;
 use rotbl::v001::DB;
 
+#[allow(clippy::identity_op)]
 #[tokio::main]
 async fn main() {
+    let n_keys_per_block = 80;
+    // let n_keys_per_block = 1024 * 16;
+    let build_keys = 1 * 1024;
+    // let r = build(&db, 32 * 1024 * 1024).await;
+
     let config = Config::default()
         .with_root_path("./_rotbl")
-        .with_block_config(BlockConfig::default().with_max_items(1024 * 16))
+        .with_block_config(BlockConfig::default().with_max_items(n_keys_per_block))
         .with_block_cache_config(
             BlockCacheConfig::default().with_max_items(5).with_capacity(256 * 1024 * 1024),
         );
 
-    // let db = DB::open(config).unwrap();
-    // let r = build(&db).await;
+    let db = DB::open(config).unwrap();
+    let r = build(&db, build_keys).await;
 
-    let r = Rotbl::open(config, "./_rotbl/foo").unwrap();
+    // let r = Rotbl::open(config, "./_rotbl/foo").unwrap();
 
     let r = Arc::new(r);
 
-    let n = 1024 * 16 * 6;
-    // let n = 5_000_000;
-    scan(&r, n).await;
-    scan(&r, n).await;
+    // {
+    //     let n = 1024 * 16 * 6;
+    //     // let n = 5_000_000;
+    //     scan(&r, n).await;
+    //     scan(&r, n).await;
+    // }
+
+    let _ = r;
 }
 
 #[allow(dead_code)]
-async fn build(db: &DB) -> Rotbl {
-    //
-    let n_keys = 32 * 1024 * 1024;
+async fn build(db: &DB, n_keys: i32) -> Rotbl {
     let key_len = 64;
     let val_len = 256;
 

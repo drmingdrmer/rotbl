@@ -34,6 +34,8 @@
 //! ```
 
 #![feature(coroutines)]
+#![feature(coroutine_trait)]
+#![feature(iter_from_coroutine)]
 
 extern crate core;
 

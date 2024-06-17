@@ -1,5 +1,6 @@
 pub mod access_stat;
 pub mod builder;
+pub mod dump;
 pub mod io_driver;
 pub mod io_driver_get;
 pub mod io_driver_stream;
@@ -65,7 +66,6 @@ pub struct Rotbl {
     /// On disk file size in bytes
     file_size: u64,
 
-    #[allow(dead_code)]
     header: Header,
 
     // not used yet.
@@ -147,6 +147,10 @@ impl Rotbl {
         };
 
         Ok(r)
+    }
+
+    pub fn header(&self) -> &Header {
+        &self.header
     }
 
     pub fn file_size(&self) -> u64 {
@@ -232,6 +236,11 @@ impl Rotbl {
         self.access_stat.hit_block(false);
 
         Ok(block)
+    }
+
+    /// Dump the table to human readable lines in an iterator.
+    pub fn dump(self: &Arc<Self>) -> impl Iterator<Item = Result<String, io::Error>> {
+        dump::Dump::new(self.clone()).dump()
     }
 
     pub fn io_driver(&self) -> IODriver {

@@ -1,3 +1,4 @@
+use std::fmt;
 use std::io::Error;
 use std::io::Read;
 use std::io::Write;
@@ -8,27 +9,9 @@ use crate::typ::Type;
 use crate::v001::checksum_reader::ChecksumReader;
 use crate::v001::checksum_writer::ChecksumWriter;
 use crate::v001::header::Header;
+use crate::v001::rotbl_meta_payload::RotblMetaPayload;
 use crate::v001::with_checksum::WithChecksum;
 use crate::version::Version;
-
-#[derive(Debug)]
-#[derive(Clone)]
-#[derive(PartialEq, Eq)]
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct RotblMetaPayload {
-    /// The global seq number of keys
-    seq: u64,
-    user_data: String,
-}
-
-impl RotblMetaPayload {
-    pub fn new(seq: u64, user_data: impl ToString) -> Self {
-        Self {
-            seq,
-            user_data: user_data.to_string(),
-        }
-    }
-}
 
 #[derive(Debug)]
 #[derive(Clone)]
@@ -55,6 +38,12 @@ impl RotblMeta {
 
     pub fn user_data(&self) -> &str {
         &self.payload.user_data
+    }
+}
+
+impl fmt::Display for RotblMeta {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{{header: {}, payload: {}}}", self.header, self.payload)
     }
 }
 
