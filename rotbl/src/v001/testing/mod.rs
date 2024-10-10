@@ -2,6 +2,7 @@
 
 use std::any::type_name;
 use std::fmt::Debug;
+use std::io;
 
 use crate::codec::Codec;
 use crate::v001::SeqMarked;
@@ -10,7 +11,7 @@ use crate::v001::SeqMarked;
 pub(crate) fn test_codec<D: Codec + PartialEq + Debug>(
     encoded_bytes: &[u8],
     v: &D,
-) -> anyhow::Result<()> {
+) -> Result<(), io::Error> {
     // convert `correct` to string if possible
     let correct_str = String::from_utf8_lossy(encoded_bytes);
     println!("correct data: {}", correct_str);
