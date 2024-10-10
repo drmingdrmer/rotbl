@@ -5,11 +5,11 @@ use std::io::Write;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
+use codeq::ChecksumReader;
+use codeq::ChecksumWriter;
+use codeq::Codec;
+use codeq::FixedSize;
 
-use crate::codec::checksum_reader::ChecksumReader;
-use crate::codec::checksum_writer::ChecksumWriter;
-use crate::codec::fixed_size::FixedSize;
-use crate::codec::Codec;
 use crate::io_util;
 
 /// Describe a segment with offset and size.
@@ -80,8 +80,9 @@ impl Codec for Segment {
 
 #[cfg(test)]
 mod tests {
+    use codeq::testing::test_codec;
+
     use crate::v001::segment::Segment;
-    use crate::v001::testing::test_codec;
 
     #[test]
     fn test_segment_codec() -> anyhow::Result<()> {

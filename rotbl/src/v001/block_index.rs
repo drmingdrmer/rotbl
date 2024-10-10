@@ -6,11 +6,12 @@ use std::io::Write;
 use std::ops::Bound;
 use std::ops::RangeBounds;
 
+use codeq::ChecksumReader;
+use codeq::ChecksumWriter;
+use codeq::Codec;
+use codeq::WithChecksum;
+
 use crate::buf::new_uninitialized;
-use crate::codec::checksum_reader::ChecksumReader;
-use crate::codec::checksum_writer::ChecksumWriter;
-use crate::codec::with_checksum::WithChecksum;
-use crate::codec::Codec;
 use crate::typ::Type;
 use crate::v001::header::Header;
 use crate::version::Version;
@@ -160,14 +161,14 @@ mod tests {
     use std::fmt::Debug;
     use std::ops::RangeBounds;
 
+    use codeq::testing::test_codec;
+    use codeq::Codec;
     use pretty_assertions::assert_eq;
 
-    use crate::codec::Codec;
     use crate::v001::block_index::BlockIndex;
     use crate::v001::block_index::BlockIndexEntry;
     use crate::v001::testing::bbs;
     use crate::v001::testing::ss;
-    use crate::v001::testing::test_codec;
     use crate::v001::testing::vec_chain;
 
     #[test]

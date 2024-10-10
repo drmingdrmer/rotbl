@@ -3,9 +3,9 @@ use std::io;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
+use codeq::Codec;
 
 use crate::buf;
-use crate::codec::Codec;
 
 #[derive(Debug)]
 #[derive(PartialEq, Eq)]

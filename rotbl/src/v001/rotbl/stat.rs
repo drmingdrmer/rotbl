@@ -6,11 +6,11 @@ use std::io::Write;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
+use codeq::ChecksumReader;
+use codeq::ChecksumWriter;
+use codeq::Codec;
 
 use crate::buf::new_uninitialized;
-use crate::codec::checksum_reader::ChecksumReader;
-use crate::codec::checksum_writer::ChecksumWriter;
-use crate::codec::Codec;
 use crate::num::format_num;
 
 /// Stats about a [`Rotbl`] instance.
@@ -122,9 +122,10 @@ impl Codec for RotblStat {
 
 #[cfg(test)]
 mod tests {
+    use codeq::testing::test_codec;
+
     use crate::v001::rotbl::stat::RotblStat;
     use crate::v001::testing::bbs;
-    use crate::v001::testing::test_codec;
     use crate::v001::testing::vec_chain;
 
     #[test]

@@ -1,6 +1,6 @@
+use codeq::Codec;
 use pretty_assertions::assert_eq;
 
-use crate::codec::Codec;
 use crate::v00x::RawVLArray;
 use crate::v00x::RawVLArrayBuilder;
 

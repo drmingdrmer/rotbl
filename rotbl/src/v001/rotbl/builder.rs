@@ -8,8 +8,9 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::codec::with_checksum::WithChecksum;
-use crate::codec::Codec;
+use codeq::Codec;
+use codeq::WithChecksum;
+
 use crate::io_util::DEFAULT_READ_BUF_SIZE;
 use crate::io_util::DEFAULT_WRITE_BUF_SIZE;
 use crate::typ::Type;

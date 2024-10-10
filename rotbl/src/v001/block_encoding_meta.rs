@@ -5,10 +5,9 @@ use std::io::Write;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-
-use crate::codec::checksum_reader::ChecksumReader;
-use crate::codec::checksum_writer::ChecksumWriter;
-use crate::codec::Codec;
+use codeq::ChecksumReader;
+use codeq::ChecksumWriter;
+use codeq::Codec;
 
 /// The meta data of a encoded block
 #[derive(Debug)]
@@ -68,8 +67,9 @@ impl Codec for BlockEncodingMeta {
 
 #[cfg(test)]
 mod tests {
+    use codeq::testing::test_codec;
+
     use crate::v001::block_encoding_meta::BlockEncodingMeta;
-    use crate::v001::testing::test_codec;
 
     #[test]
     fn test_block_meta_codec() -> anyhow::Result<()> {

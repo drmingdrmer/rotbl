@@ -4,8 +4,10 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
-use crate::codec::fixed_size::FixedSize;
-use crate::codec::Codec;
+use codeq::Codec;
+use codeq::FixedSize;
+// use codeq::FixedSize;
+// use codeq::Codec;
 
 const VL_ARRAY: [u8; 8] = *b"vla\0\0\0\0\0";
 const ROTBL: [u8; 8] = *b"rotbl\0\0\0";
@@ -70,7 +72,8 @@ impl Codec for Type {
 
 #[cfg(test)]
 mod tests {
-    use crate::codec::Codec;
+    use codeq::Codec;
+
     use crate::typ::typ::BLOCK;
     use crate::typ::typ::BLOCK_INDEX;
     use crate::typ::typ::ROTBL;

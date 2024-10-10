@@ -3,10 +3,11 @@ use std::io;
 use std::io::Read;
 use std::io::Write;
 
-use crate::codec::checksum_reader::ChecksumReader;
-use crate::codec::checksum_writer::ChecksumWriter;
-use crate::codec::fixed_size::FixedSize;
-use crate::codec::Codec;
+use codeq::ChecksumReader;
+use codeq::ChecksumWriter;
+use codeq::Codec;
+use codeq::FixedSize;
+
 use crate::typ::Type;
 use crate::version::Version;
 
@@ -61,10 +62,11 @@ impl Codec for Header {
 
 #[cfg(test)]
 mod tests {
-    use crate::codec::Codec;
+    use codeq::testing::test_codec;
+    use codeq::Codec;
+
     use crate::typ::Type;
     use crate::v001::header::Header;
-    use crate::v001::testing::test_codec;
     use crate::version::Version;
 
     #[test]

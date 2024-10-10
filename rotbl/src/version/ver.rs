@@ -4,9 +4,8 @@ use std::io;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-
-use crate::codec::fixed_size::FixedSize;
-use crate::codec::Codec;
+use codeq::Codec;
+use codeq::FixedSize;
 
 #[derive(Debug)]
 #[derive(Clone, Copy)]
@@ -61,8 +60,9 @@ impl Codec for Version {
 
 #[cfg(test)]
 mod tests {
-    use crate::codec::Codec;
-    use crate::v001::testing::test_codec;
+    use codeq::testing::test_codec;
+    use codeq::Codec;
+
     use crate::version::Version;
 
     #[test]

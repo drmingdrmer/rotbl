@@ -17,12 +17,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use codeq::Codec;
+use codeq::FixedSize;
+use codeq::WithChecksum;
 use futures::stream::BoxStream;
 
 use crate::buf::new_uninitialized;
-use crate::codec::fixed_size::FixedSize;
-use crate::codec::with_checksum::WithChecksum;
-use crate::codec::Codec;
 use crate::io_util;
 use crate::typ::Type;
 use crate::v001::block::Block;

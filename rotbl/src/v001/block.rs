@@ -6,10 +6,11 @@ use std::io::Read;
 use std::io::Write;
 use std::ops::RangeBounds;
 
+use codeq::ChecksumReader;
+use codeq::ChecksumWriter;
+use codeq::Codec;
+
 use crate::buf;
-use crate::codec::checksum_reader::ChecksumReader;
-use crate::codec::checksum_writer::ChecksumWriter;
-use crate::codec::Codec;
 use crate::typ::Type;
 use crate::v001::bincode_config::bincode_config;
 use crate::v001::block_encoding_meta::BlockEncodingMeta;
@@ -116,15 +117,14 @@ impl Codec for Block {
 #[cfg(test)]
 #[allow(clippy::redundant_clone)]
 mod tests {
-
+    use codeq::testing::test_codec;
+    use codeq::Codec;
     use pretty_assertions::assert_eq;
 
-    use crate::codec::Codec;
     use crate::v001::bincode_config::bincode_config;
     use crate::v001::block::Block;
     use crate::v001::testing::bb;
     use crate::v001::testing::ss;
-    use crate::v001::testing::test_codec;
     use crate::v001::testing::vec_chain;
     use crate::v001::SeqMarked;
 

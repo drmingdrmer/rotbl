@@ -2,8 +2,9 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
-use crate::codec::fixed_size::FixedSize;
-use crate::codec::Codec;
+use codeq::Codec;
+use codeq::FixedSize;
+
 use crate::v001::segment::Segment;
 
 #[derive(Debug)]
@@ -63,9 +64,10 @@ impl Codec for Footer {
 
 #[cfg(test)]
 mod tests {
+    use codeq::testing::test_codec;
+
     use crate::v001::footer::Footer;
     use crate::v001::segment::Segment;
-    use crate::v001::testing::test_codec;
 
     #[test]
     fn test_footer_codec() -> anyhow::Result<()> {

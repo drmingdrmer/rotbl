@@ -40,7 +40,6 @@
 extern crate core;
 
 pub(crate) mod buf;
-pub(crate) mod codec;
 pub(crate) mod io_util;
 pub mod num;
 pub(crate) mod typ;

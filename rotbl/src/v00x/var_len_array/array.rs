@@ -3,7 +3,8 @@ use std::io::Read;
 use std::io::Write;
 use std::sync::Arc;
 
-use crate::codec::Codec;
+use codeq::Codec;
+
 use crate::typ::Type;
 use crate::v00x::var_len_array::payload::RawVLArrayPayload;
 use crate::version::Version;

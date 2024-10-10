@@ -3,11 +3,12 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
+use codeq::ChecksumReader;
+use codeq::ChecksumWriter;
+use codeq::Codec;
+use codeq::WithChecksum;
+
 use crate::buf;
-use crate::codec::checksum_reader::ChecksumReader;
-use crate::codec::checksum_writer::ChecksumWriter;
-use crate::codec::with_checksum::WithChecksum;
-use crate::codec::Codec;
 use crate::typ::Type;
 use crate::v001::header::Header;
 use crate::v001::rotbl_meta_payload::RotblMetaPayload;
@@ -97,12 +98,12 @@ impl Codec for RotblMeta {
 #[allow(clippy::redundant_clone)]
 mod tests {
 
+    use codeq::testing::test_codec;
     #[allow(unused_imports)]
     use pretty_assertions::assert_eq;
 
     use crate::v001::rotbl_meta::RotblMeta;
     use crate::v001::testing::bbs;
-    use crate::v001::testing::test_codec;
     use crate::v001::testing::vec_chain;
 
     #[test]
