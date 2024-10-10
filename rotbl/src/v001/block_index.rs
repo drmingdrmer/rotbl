@@ -109,9 +109,6 @@ impl BlockIndex {
 }
 
 impl Codec for BlockIndex {
-    // Variable sized block.
-    const ENCODED_SIZE: u64 = 0;
-
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, io::Error> {
         let mut n = 0usize;
 

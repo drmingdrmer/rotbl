@@ -48,9 +48,6 @@ impl fmt::Display for RotblMeta {
 }
 
 impl Codec for RotblMeta {
-    // Variable sized block.
-    const ENCODED_SIZE: u64 = 0;
-
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0usize;
 

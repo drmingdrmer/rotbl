@@ -69,9 +69,6 @@ impl Block {
 }
 
 impl Codec for Block {
-    // Variable sized block.
-    const ENCODED_SIZE: u64 = 0;
-
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0usize;
         let encoded_data = bincode::encode_to_vec(&self.data, bincode_config())

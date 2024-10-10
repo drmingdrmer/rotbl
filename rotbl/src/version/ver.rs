@@ -5,6 +5,7 @@ use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 
+use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 
 #[derive(Debug)]
@@ -35,12 +36,16 @@ impl Version {
     }
 }
 
-impl Codec for Version {
-    const ENCODED_SIZE: u64 = 8;
+impl FixedSize for Version {
+    fn encoded_size() -> usize {
+        8
+    }
+}
 
+impl Codec for Version {
     fn encode<W: io::Write>(&self, mut w: W) -> Result<usize, io::Error> {
         w.write_u64::<BigEndian>(self.as_u64())?;
-        Ok(8)
+        Ok(Self::encoded_size())
     }
 
     fn decode<R: io::Read>(mut r: R) -> Result<Self, io::Error> {

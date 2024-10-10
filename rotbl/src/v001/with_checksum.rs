@@ -2,6 +2,7 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
+use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 use crate::v001::checksum_reader::ChecksumReader;
 use crate::v001::checksum_writer::ChecksumWriter;
@@ -24,11 +25,15 @@ impl<T> WithChecksum<T> {
     }
 }
 
+impl<T: FixedSize> FixedSize for WithChecksum<T> {
+    fn encoded_size() -> usize {
+        T::encoded_size() + 8
+    }
+}
+
 impl<T> Codec for WithChecksum<T>
 where T: Codec
 {
-    const ENCODED_SIZE: u64 = T::ENCODED_SIZE + 8;
-
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
         let mut cw = ChecksumWriter::new(&mut w);

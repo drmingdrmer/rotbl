@@ -1,23 +1,21 @@
+pub(crate) mod fixed_size;
+
 use std::io;
-use std::mem::size_of;
 
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 
-pub(crate) trait Codec: Sized {
-    /// The size of the encoded data if Self is fix sized.
-    const ENCODED_SIZE: u64;
+use self::fixed_size::FixedSize;
 
+pub(crate) trait Codec: Sized {
     fn encode<W: io::Write>(&self, w: W) -> Result<usize, io::Error>;
     fn decode<R: io::Read>(r: R) -> Result<Self, io::Error>;
 }
 
 impl Codec for u64 {
-    const ENCODED_SIZE: u64 = size_of::<Self>() as u64;
-
     fn encode<W: io::Write>(&self, mut w: W) -> Result<usize, io::Error> {
         w.write_u64::<byteorder::BigEndian>(*self)?;
-        Ok(Self::ENCODED_SIZE as usize)
+        Ok(Self::encoded_size())
     }
 
     fn decode<R: io::Read>(mut r: R) -> Result<Self, io::Error> {
@@ -27,11 +25,9 @@ impl Codec for u64 {
 }
 
 impl Codec for u32 {
-    const ENCODED_SIZE: u64 = size_of::<Self>() as u64;
-
     fn encode<W: io::Write>(&self, mut w: W) -> Result<usize, io::Error> {
         w.write_u32::<byteorder::BigEndian>(*self)?;
-        Ok(Self::ENCODED_SIZE as usize)
+        Ok(Self::encoded_size())
     }
 
     fn decode<R: io::Read>(mut r: R) -> Result<Self, io::Error> {
@@ -45,6 +41,7 @@ mod tests {
     use std::fmt::Debug;
     use std::mem::size_of;
 
+    use crate::codec::fixed_size::FixedSize;
     use crate::codec::Codec;
 
     #[test]
@@ -57,10 +54,10 @@ mod tests {
         test_int_coded(0x12345678u32)
     }
 
-    fn test_int_coded<T: Codec + PartialEq + Debug>(v: T) -> anyhow::Result<()> {
+    fn test_int_coded<T: Codec + FixedSize + PartialEq + Debug>(v: T) -> anyhow::Result<()> {
         let size = size_of::<T>();
 
-        assert_eq!(T::ENCODED_SIZE, size as u64);
+        assert_eq!(T::encoded_size(), size);
 
         let mut buf = Vec::new();
         let n = v.encode(&mut buf)?;

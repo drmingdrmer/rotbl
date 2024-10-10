@@ -3,6 +3,7 @@ use std::io;
 use std::io::Read;
 use std::io::Write;
 
+use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 use crate::typ::Type;
 use crate::v001::checksum_reader::ChecksumReader;
@@ -29,9 +30,13 @@ impl fmt::Display for Header {
     }
 }
 
-impl Codec for Header {
-    const ENCODED_SIZE: u64 = Type::ENCODED_SIZE + Version::ENCODED_SIZE + 8;
+impl FixedSize for Header {
+    fn encoded_size() -> usize {
+        Type::encoded_size() + Version::encoded_size() + 8
+    }
+}
 
+impl Codec for Header {
     fn encode<W: Write>(&self, w: W) -> Result<usize, io::Error> {
         let mut n = 0;
         let mut hw = ChecksumWriter::new(w);

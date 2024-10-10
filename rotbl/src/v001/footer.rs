@@ -2,6 +2,7 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
+use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 use crate::v001::segment::Segment;
 
@@ -29,9 +30,14 @@ impl Footer {
     }
 }
 
-impl Codec for Footer {
-    const ENCODED_SIZE: u64 = Segment::ENCODED_SIZE * 3;
+impl FixedSize for Footer {
+    fn encoded_size() -> usize {
+        // Block index, meta, stat
+        Segment::encoded_size() * 3
+    }
+}
 
+impl Codec for Footer {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 

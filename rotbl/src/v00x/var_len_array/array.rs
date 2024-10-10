@@ -35,8 +35,6 @@ impl RawVLArray {
 }
 
 impl Codec for RawVLArray {
-    const ENCODED_SIZE: u64 = 0;
-
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 

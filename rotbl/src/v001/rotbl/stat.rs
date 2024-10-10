@@ -76,8 +76,6 @@ impl fmt::Display for RotblStat {
 }
 
 impl Codec for RotblStat {
-    const ENCODED_SIZE: u64 = 0;
-
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 

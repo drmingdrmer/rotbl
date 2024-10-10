@@ -40,9 +40,6 @@ impl BlockEncodingMeta {
 }
 
 impl Codec for BlockEncodingMeta {
-    // Variable sized block.
-    const ENCODED_SIZE: u64 = 0;
-
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
         let mut cw = ChecksumWriter::new(&mut w);

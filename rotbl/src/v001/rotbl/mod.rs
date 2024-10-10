@@ -20,6 +20,7 @@ use std::sync::Mutex;
 use futures::stream::BoxStream;
 
 use crate::buf::new_uninitialized;
+use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 use crate::io_util;
 use crate::typ::Type;
@@ -113,7 +114,7 @@ impl Rotbl {
 
         let table_id = WithChecksum::<u32>::decode(&mut f)?.into_inner();
 
-        let footer_offset = f.seek(io::SeekFrom::End(-(Footer::ENCODED_SIZE as i64)))?;
+        let footer_offset = f.seek(io::SeekFrom::End(-(Footer::encoded_size() as i64)))?;
         let footer = Footer::decode(&mut f)?;
 
         let block_index = {
@@ -138,7 +139,7 @@ impl Rotbl {
             table_id,
             header,
             file: Arc::new(Mutex::new(f)),
-            file_size: footer_offset + Footer::ENCODED_SIZE,
+            file_size: footer_offset + Footer::encoded_size() as u64,
             meta,
             block_index,
             stat,

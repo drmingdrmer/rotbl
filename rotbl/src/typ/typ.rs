@@ -4,6 +4,7 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
+use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 
 const VL_ARRAY: [u8; 8] = *b"vla\0\0\0\0\0";
@@ -29,9 +30,13 @@ impl fmt::Display for Type {
     }
 }
 
-impl Codec for Type {
-    const ENCODED_SIZE: u64 = 8;
+impl FixedSize for Type {
+    fn encoded_size() -> usize {
+        8
+    }
+}
 
+impl Codec for Type {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let b = match self {
             Type::VLArray => &VL_ARRAY,

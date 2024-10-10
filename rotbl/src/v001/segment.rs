@@ -6,6 +6,7 @@ use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 
+use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 use crate::io_util;
 use crate::v001::checksum_reader::ChecksumReader;
@@ -41,9 +42,14 @@ impl io_util::Segment for Segment {
     }
 }
 
-impl Codec for Segment {
-    const ENCODED_SIZE: u64 = 8 + 8 + 8;
+impl FixedSize for Segment {
+    fn encoded_size() -> usize {
+        // offset, size, checksum
+        8 + 8 + 8
+    }
+}
 
+impl Codec for Segment {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 

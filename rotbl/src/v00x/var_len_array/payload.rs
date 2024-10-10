@@ -33,8 +33,6 @@ impl RawVLArrayPayload {
 }
 
 impl Codec for RawVLArrayPayload {
-    const ENCODED_SIZE: u64 = 0;
-
     fn encode<W: io::Write>(&self, mut w: W) -> Result<usize, io::Error> {
         let mut n = 0;
 
