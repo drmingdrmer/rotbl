@@ -5,8 +5,6 @@ mod block_id;
 mod block_index;
 mod block_stream;
 mod cache_stat;
-mod checksum_reader;
-mod checksum_writer;
 mod config;
 mod db;
 mod footer;
@@ -18,7 +16,6 @@ mod rotbl_meta;
 pub mod rotbl_meta_payload;
 mod segment;
 pub(crate) mod testing;
-mod with_checksum;
 
 pub(crate) mod bincode_config;
 

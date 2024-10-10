@@ -1,4 +1,7 @@
+pub(crate) mod checksum_reader;
+pub(crate) mod checksum_writer;
 pub(crate) mod fixed_size;
+pub(crate) mod with_checksum;
 
 use std::io;
 

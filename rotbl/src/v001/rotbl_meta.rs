@@ -4,13 +4,13 @@ use std::io::Read;
 use std::io::Write;
 
 use crate::buf;
+use crate::codec::checksum_reader::ChecksumReader;
+use crate::codec::checksum_writer::ChecksumWriter;
+use crate::codec::with_checksum::WithChecksum;
 use crate::codec::Codec;
 use crate::typ::Type;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
 use crate::v001::header::Header;
 use crate::v001::rotbl_meta_payload::RotblMetaPayload;
-use crate::v001::with_checksum::WithChecksum;
 use crate::version::Version;
 
 #[derive(Debug)]

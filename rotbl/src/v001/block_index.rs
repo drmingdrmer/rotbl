@@ -7,12 +7,12 @@ use std::ops::Bound;
 use std::ops::RangeBounds;
 
 use crate::buf::new_uninitialized;
+use crate::codec::checksum_reader::ChecksumReader;
+use crate::codec::checksum_writer::ChecksumWriter;
+use crate::codec::with_checksum::WithChecksum;
 use crate::codec::Codec;
 use crate::typ::Type;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
 use crate::v001::header::Header;
-use crate::v001::with_checksum::WithChecksum;
 use crate::version::Version;
 
 /// The meta data of a block, which is also an index entry in the block index.

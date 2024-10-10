@@ -7,12 +7,12 @@ use std::io::Write;
 use std::ops::RangeBounds;
 
 use crate::buf;
+use crate::codec::checksum_reader::ChecksumReader;
+use crate::codec::checksum_writer::ChecksumWriter;
 use crate::codec::Codec;
 use crate::typ::Type;
 use crate::v001::bincode_config::bincode_config;
 use crate::v001::block_encoding_meta::BlockEncodingMeta;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
 use crate::v001::header::Header;
 use crate::v001::SeqMarked;
 use crate::version::Version;

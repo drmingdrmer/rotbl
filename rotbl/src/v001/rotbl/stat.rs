@@ -8,10 +8,10 @@ use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 
 use crate::buf::new_uninitialized;
+use crate::codec::checksum_reader::ChecksumReader;
+use crate::codec::checksum_writer::ChecksumWriter;
 use crate::codec::Codec;
 use crate::num::format_num;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
 
 /// Stats about a [`Rotbl`] instance.
 ///

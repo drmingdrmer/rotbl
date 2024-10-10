@@ -3,11 +3,11 @@ use std::io;
 use std::io::Read;
 use std::io::Write;
 
+use crate::codec::checksum_reader::ChecksumReader;
+use crate::codec::checksum_writer::ChecksumWriter;
 use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 use crate::typ::Type;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
 use crate::version::Version;
 
 #[derive(Debug)]

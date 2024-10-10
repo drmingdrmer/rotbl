@@ -21,6 +21,7 @@ use futures::stream::BoxStream;
 
 use crate::buf::new_uninitialized;
 use crate::codec::fixed_size::FixedSize;
+use crate::codec::with_checksum::WithChecksum;
 use crate::codec::Codec;
 use crate::io_util;
 use crate::typ::Type;
@@ -36,7 +37,6 @@ use crate::v001::rotbl::access_stat::AccessStat;
 use crate::v001::rotbl::io_driver::IODriver;
 use crate::v001::rotbl::io_driver::IOPort;
 use crate::v001::rotbl_meta::RotblMeta;
-use crate::v001::with_checksum::WithChecksum;
 use crate::v001::CacheStat;
 use crate::v001::Config;
 use crate::v001::SeqMarked;

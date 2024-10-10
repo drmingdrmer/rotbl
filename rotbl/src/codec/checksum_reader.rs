@@ -70,7 +70,7 @@ mod tests {
     use std::io::Read;
     use std::io::Write;
 
-    use crate::v001::checksum_writer::ChecksumWriter;
+    use crate::codec::checksum_writer::ChecksumWriter;
 
     #[test]
     fn test_checksum_reader() -> anyhow::Result<()> {

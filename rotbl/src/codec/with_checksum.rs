@@ -2,10 +2,10 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
+use crate::codec::checksum_reader::ChecksumReader;
+use crate::codec::checksum_writer::ChecksumWriter;
 use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
 
 /// A encoding helper that appends a checksum to the end of the encoded data.
 #[derive(Debug)]
@@ -58,9 +58,9 @@ where T: Codec
 
 #[cfg(test)]
 mod tests {
+    use crate::codec::with_checksum::WithChecksum;
     use crate::codec::Codec;
     use crate::v001::testing::test_codec;
-    use crate::v001::with_checksum::WithChecksum;
 
     #[test]
     fn test_with_checksum_codec() -> anyhow::Result<()> {

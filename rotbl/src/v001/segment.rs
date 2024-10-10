@@ -6,11 +6,11 @@ use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 
+use crate::codec::checksum_reader::ChecksumReader;
+use crate::codec::checksum_writer::ChecksumWriter;
 use crate::codec::fixed_size::FixedSize;
 use crate::codec::Codec;
 use crate::io_util;
-use crate::v001::checksum_reader::ChecksumReader;
-use crate::v001::checksum_writer::ChecksumWriter;
 
 /// Describe a segment with offset and size.
 #[derive(Debug, Clone, Copy)]
