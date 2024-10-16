@@ -5,7 +5,6 @@ use std::io::Write;
 
 use codeq::ChecksumReader;
 use codeq::ChecksumWriter;
-use codeq::Codec;
 use codeq::FixedSize;
 
 use crate::typ::Type;
@@ -37,7 +36,7 @@ impl FixedSize for Header {
     }
 }
 
-impl Codec for Header {
+impl codeq::Encode for Header {
     fn encode<W: Write>(&self, w: W) -> Result<usize, io::Error> {
         let mut n = 0;
         let mut hw = ChecksumWriter::new(w);
@@ -48,7 +47,9 @@ impl Codec for Header {
         n += hw.write_checksum()?;
         Ok(n)
     }
+}
 
+impl codeq::Decode for Header {
     fn decode<R: Read>(mut r: R) -> Result<Self, io::Error> {
         let mut cr = ChecksumReader::new(&mut r);
 
@@ -63,7 +64,7 @@ impl Codec for Header {
 #[cfg(test)]
 mod tests {
     use codeq::testing::test_codec;
-    use codeq::Codec;
+    use codeq::Encode;
 
     use crate::typ::Type;
     use crate::v001::header::Header;

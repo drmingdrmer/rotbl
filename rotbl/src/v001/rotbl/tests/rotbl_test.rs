@@ -4,6 +4,7 @@
 use std::path::Path;
 use std::sync::Arc;
 
+use codeq::Segment;
 use futures::StreamExt;
 use tempfile::TempDir;
 
@@ -16,7 +17,6 @@ use crate::v001::footer::Footer;
 use crate::v001::header::Header;
 use crate::v001::rotbl::stat::RotblStat;
 use crate::v001::rotbl::Rotbl;
-use crate::v001::segment::Segment;
 use crate::v001::testing::bb;
 use crate::v001::testing::ss;
 use crate::v001::RotblMeta;

@@ -2,10 +2,8 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
-use codeq::Codec;
 use codeq::FixedSize;
-
-use crate::v001::segment::Segment;
+use codeq::Segment;
 
 #[derive(Debug)]
 #[derive(Clone)]
@@ -38,7 +36,7 @@ impl FixedSize for Footer {
     }
 }
 
-impl Codec for Footer {
+impl codeq::Encode for Footer {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 
@@ -48,7 +46,9 @@ impl Codec for Footer {
 
         Ok(n)
     }
+}
 
+impl codeq::Decode for Footer {
     fn decode<R: Read>(mut r: R) -> Result<Self, Error> {
         let block_index = Segment::decode(&mut r)?;
         let meta = Segment::decode(&mut r)?;
@@ -65,9 +65,9 @@ impl Codec for Footer {
 #[cfg(test)]
 mod tests {
     use codeq::testing::test_codec;
+    use codeq::Segment;
 
     use crate::v001::footer::Footer;
-    use crate::v001::segment::Segment;
 
     #[test]
     fn test_footer_codec() -> anyhow::Result<()> {

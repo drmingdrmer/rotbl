@@ -1,4 +1,5 @@
-use codeq::Codec;
+use codeq::Decode;
+use codeq::Encode;
 use pretty_assertions::assert_eq;
 
 use crate::version::Version;

@@ -4,7 +4,6 @@ use std::io;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-use codeq::Codec;
 use codeq::FixedSize;
 
 #[derive(Debug)]
@@ -41,12 +40,14 @@ impl FixedSize for Version {
     }
 }
 
-impl Codec for Version {
+impl codeq::Encode for Version {
     fn encode<W: io::Write>(&self, mut w: W) -> Result<usize, io::Error> {
         w.write_u64::<BigEndian>(self.as_u64())?;
         Ok(Self::encoded_size())
     }
+}
 
+impl codeq::Decode for Version {
     fn decode<R: io::Read>(mut r: R) -> Result<Self, io::Error> {
         let ver = r.read_u64::<BigEndian>()?;
         Self::from_u64(ver).map_err(|_| {
@@ -61,7 +62,7 @@ impl Codec for Version {
 #[cfg(test)]
 mod tests {
     use codeq::testing::test_codec;
-    use codeq::Codec;
+    use codeq::Encode;
 
     use crate::version::Version;
 

@@ -3,7 +3,6 @@ use std::io;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-use codeq::Codec;
 
 use crate::buf;
 
@@ -32,7 +31,7 @@ impl RawVLArrayPayload {
     }
 }
 
-impl Codec for RawVLArrayPayload {
+impl codeq::Encode for RawVLArrayPayload {
     fn encode<W: io::Write>(&self, mut w: W) -> Result<usize, io::Error> {
         let mut n = 0;
 
@@ -55,7 +54,9 @@ impl Codec for RawVLArrayPayload {
 
         Ok(n)
     }
+}
 
+impl codeq::Decode for RawVLArrayPayload {
     fn decode<R: io::Read>(mut r: R) -> Result<Self, io::Error> {
         let len = r.read_u64::<BigEndian>()? as usize;
 

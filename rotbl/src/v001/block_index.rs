@@ -8,7 +8,6 @@ use std::ops::RangeBounds;
 
 use codeq::ChecksumReader;
 use codeq::ChecksumWriter;
-use codeq::Codec;
 use codeq::WithChecksum;
 
 use crate::buf::new_uninitialized;
@@ -109,7 +108,7 @@ impl BlockIndex {
     }
 }
 
-impl Codec for BlockIndex {
+impl codeq::Encode for BlockIndex {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, io::Error> {
         let mut n = 0usize;
 
@@ -129,7 +128,9 @@ impl Codec for BlockIndex {
 
         Ok(n)
     }
+}
 
+impl codeq::Decode for BlockIndex {
     fn decode<R: Read>(r: R) -> Result<Self, io::Error> {
         let mut cr = ChecksumReader::new(r);
 
@@ -162,7 +163,8 @@ mod tests {
     use std::ops::RangeBounds;
 
     use codeq::testing::test_codec;
-    use codeq::Codec;
+    use codeq::Decode;
+    use codeq::Encode;
     use pretty_assertions::assert_eq;
 
     use crate::v001::block_index::BlockIndex;

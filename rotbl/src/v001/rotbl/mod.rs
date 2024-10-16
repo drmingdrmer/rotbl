@@ -17,7 +17,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use codeq::Codec;
+use codeq::Decode;
 use codeq::FixedSize;
 use codeq::WithChecksum;
 use futures::stream::BoxStream;
@@ -239,7 +239,7 @@ impl Rotbl {
         Ok(block)
     }
 
-    /// Dump the table to human readable lines in an iterator.
+    /// Dump the table to human-readable lines in an iterator.
     pub fn dump(self: &Arc<Self>) -> impl Iterator<Item = Result<String, io::Error>> {
         dump::Dump::new(self.clone()).dump()
     }

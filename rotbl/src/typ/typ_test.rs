@@ -1,4 +1,5 @@
-use codeq::Codec;
+use codeq::Decode;
+use codeq::Encode;
 
 use crate::typ::Type;
 
