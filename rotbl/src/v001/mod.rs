@@ -14,7 +14,6 @@ mod range;
 mod rotbl;
 mod rotbl_meta;
 pub mod rotbl_meta_payload;
-mod segment;
 pub(crate) mod testing;
 
 pub(crate) mod bincode_config;

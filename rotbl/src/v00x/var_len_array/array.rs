@@ -3,8 +3,6 @@ use std::io::Read;
 use std::io::Write;
 use std::sync::Arc;
 
-use codeq::Codec;
-
 use crate::typ::Type;
 use crate::v00x::var_len_array::payload::RawVLArrayPayload;
 use crate::version::Version;
@@ -35,7 +33,7 @@ impl RawVLArray {
     }
 }
 
-impl Codec for RawVLArray {
+impl codeq::Encode for RawVLArray {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 
@@ -46,7 +44,9 @@ impl Codec for RawVLArray {
 
         Ok(n)
     }
+}
 
+impl codeq::Decode for RawVLArray {
     fn decode<R: Read>(mut r: R) -> Result<Self, Error> {
         let t = Type::decode(&mut r)?;
         if t != Type::VLArray {

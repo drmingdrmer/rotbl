@@ -5,7 +5,6 @@ use std::io::Write;
 
 use codeq::ChecksumReader;
 use codeq::ChecksumWriter;
-use codeq::Codec;
 use codeq::WithChecksum;
 
 use crate::buf;
@@ -48,7 +47,7 @@ impl fmt::Display for RotblMeta {
     }
 }
 
-impl Codec for RotblMeta {
+impl codeq::Encode for RotblMeta {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0usize;
 
@@ -69,7 +68,9 @@ impl Codec for RotblMeta {
 
         Ok(n)
     }
+}
 
+impl codeq::Decode for RotblMeta {
     fn decode<R: Read>(r: R) -> Result<Self, Error> {
         let mut cr = ChecksumReader::new(r);
 

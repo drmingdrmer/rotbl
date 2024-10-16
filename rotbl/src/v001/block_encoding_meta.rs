@@ -7,7 +7,6 @@ use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 use codeq::ChecksumReader;
 use codeq::ChecksumWriter;
-use codeq::Codec;
 
 /// The meta data of a encoded block
 #[derive(Debug)]
@@ -38,7 +37,7 @@ impl BlockEncodingMeta {
     }
 }
 
-impl Codec for BlockEncodingMeta {
+impl codeq::Encode for BlockEncodingMeta {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
         let mut cw = ChecksumWriter::new(&mut w);
@@ -51,7 +50,9 @@ impl Codec for BlockEncodingMeta {
 
         Ok(n)
     }
+}
 
+impl codeq::Decode for BlockEncodingMeta {
     fn decode<R: Read>(r: R) -> Result<Self, Error> {
         let mut cr = ChecksumReader::new(r);
 

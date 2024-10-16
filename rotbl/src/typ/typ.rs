@@ -4,10 +4,7 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
-use codeq::Codec;
 use codeq::FixedSize;
-// use codeq::FixedSize;
-// use codeq::Codec;
 
 const VL_ARRAY: [u8; 8] = *b"vla\0\0\0\0\0";
 const ROTBL: [u8; 8] = *b"rotbl\0\0\0";
@@ -38,7 +35,7 @@ impl FixedSize for Type {
     }
 }
 
-impl Codec for Type {
+impl codeq::Encode for Type {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let b = match self {
             Type::VLArray => &VL_ARRAY,
@@ -51,7 +48,9 @@ impl Codec for Type {
 
         Ok(b.len())
     }
+}
 
+impl codeq::Decode for Type {
     fn decode<R: Read>(mut r: R) -> Result<Self, Error> {
         let mut buf = [0u8; 8];
         r.read_exact(&mut buf)?;
@@ -72,7 +71,8 @@ impl Codec for Type {
 
 #[cfg(test)]
 mod tests {
-    use codeq::Codec;
+    use codeq::Decode;
+    use codeq::Encode;
 
     use crate::typ::typ::BLOCK;
     use crate::typ::typ::BLOCK_INDEX;

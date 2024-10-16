@@ -8,7 +8,6 @@ use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 use codeq::ChecksumReader;
 use codeq::ChecksumWriter;
-use codeq::Codec;
 
 use crate::buf::new_uninitialized;
 use crate::num::format_num;
@@ -75,7 +74,7 @@ impl fmt::Display for RotblStat {
     }
 }
 
-impl Codec for RotblStat {
+impl codeq::Encode for RotblStat {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
 
@@ -98,7 +97,9 @@ impl Codec for RotblStat {
 
         Ok(n)
     }
+}
 
+impl codeq::Decode for RotblStat {
     fn decode<R: Read>(mut r: R) -> Result<Self, Error> {
         let len = {
             let mut cr = ChecksumReader::new(&mut r);

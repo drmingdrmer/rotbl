@@ -8,7 +8,8 @@ use std::ops::RangeBounds;
 
 use codeq::ChecksumReader;
 use codeq::ChecksumWriter;
-use codeq::Codec;
+use codeq::Decode;
+use codeq::Encode;
 
 use crate::buf;
 use crate::typ::Type;
@@ -69,7 +70,7 @@ impl Block {
     }
 }
 
-impl Codec for Block {
+impl Encode for Block {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0usize;
         let encoded_data = bincode::encode_to_vec(&self.data, bincode_config())
@@ -90,7 +91,9 @@ impl Codec for Block {
 
         Ok(n)
     }
+}
 
+impl Decode for Block {
     fn decode<R: Read>(r: R) -> Result<Self, Error> {
         let mut cr = ChecksumReader::new(r);
 
@@ -118,7 +121,7 @@ impl Codec for Block {
 #[allow(clippy::redundant_clone)]
 mod tests {
     use codeq::testing::test_codec;
-    use codeq::Codec;
+    use codeq::Encode;
     use pretty_assertions::assert_eq;
 
     use crate::v001::bincode_config::bincode_config;
