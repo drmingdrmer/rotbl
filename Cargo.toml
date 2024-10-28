@@ -24,7 +24,7 @@ itertools            = { version = "0.11.0" }
 tokio                = { version = "1.33.0", features = ["rt-multi-thread", "macros"] }
 
 # data structure
-lru-cache         = { git = "https://github.com/drmingdrmer/lru-cache", tag = "v0.1.4-alpha.4" }
+lru-cache-map     = { version = "0.2.0" }
 maplit            = { version = "1.0.2" }
 
 # error handling
@@ -80,7 +80,6 @@ clap              = { version = "4.4.2", features = ["derive"] }
 
 # [patch.crates-io]
 # binary-heap-plus = { path = "../binary-heap-plus-rs" }
-
 
 [workspace]
 

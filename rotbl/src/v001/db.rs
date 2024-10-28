@@ -2,7 +2,7 @@ use std::io;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use lru_cache::LruCache;
+use lru_cache_map::LruCache;
 
 use crate::v001::block_cache::BlockCache;
 use crate::v001::block_cache::BlockMeter;

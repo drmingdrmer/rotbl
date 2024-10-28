@@ -24,7 +24,7 @@ futures-async-stream = { workspace = true }
 tokio                = { workspace = true }
 
 # data structure
-lru-cache            = { workspace = true }
+lru-cache-map        = { workspace = true }
 
 # error handling
 anyhow               = { workspace = true }

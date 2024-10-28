@@ -1,9 +1,9 @@
 use std::borrow::Borrow;
 use std::sync::Arc;
 
-use lru_cache::hashbrown::hash_map::DefaultHashBuilder;
-use lru_cache::meter::Meter;
-use lru_cache::LruCache;
+use lru_cache_map::hashbrown::hash_map::DefaultHashBuilder;
+use lru_cache_map::meter::Meter;
+use lru_cache_map::LruCache;
 
 use crate::v001::block::Block;
 use crate::v001::block_id::BlockId;
