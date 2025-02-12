@@ -26,15 +26,11 @@ tokio                = { workspace = true }
 # data structure
 lru-cache-map        = { workspace = true }
 
-# error handling
-anyhow               = { workspace = true }
-
 # serialization
 bincode              = { workspace = true }
 byteorder            = { workspace = true }
 bytes                = { workspace = true }
 codeq                = { workspace = true }
-crc32fast            = { workspace = true }
 serde                = { workspace = true }
 serde_json           = { workspace = true }
 #borsh                = { workspace = true }
@@ -49,10 +45,12 @@ clap                  = { workspace = true }
 # testing
 
 [dev-dependencies]
+anyhow               = { workspace = true }
 criterion            = { workspace = true }
 maplit               = { workspace = true }
 pretty_assertions    = { workspace = true }
 tempfile             = { workspace = true }
+
 
 
 [features]

@@ -1,9 +1,6 @@
 pub mod access_stat;
 pub mod builder;
 pub mod dump;
-pub mod io_driver;
-pub mod io_driver_get;
-pub mod io_driver_stream;
 pub mod stat;
 
 #[cfg(test)]
@@ -34,8 +31,6 @@ use crate::v001::footer::Footer;
 use crate::v001::header::Header;
 use crate::v001::range::RangeArg;
 use crate::v001::rotbl::access_stat::AccessStat;
-use crate::v001::rotbl::io_driver::IODriver;
-use crate::v001::rotbl::io_driver::IOPort;
 use crate::v001::rotbl_meta::RotblMeta;
 use crate::v001::CacheStat;
 use crate::v001::Config;
@@ -242,13 +237,6 @@ impl Rotbl {
     /// Dump the table to human-readable lines in an iterator.
     pub fn dump(self: &Arc<Self>) -> impl Iterator<Item = Result<String, io::Error>> {
         dump::Dump::new(self.clone()).dump()
-    }
-
-    pub fn io_driver(&self) -> IODriver {
-        IODriver {
-            rotbl: self,
-            io: IOPort::new(),
-        }
     }
 
     /// Return the value of the specified key.
