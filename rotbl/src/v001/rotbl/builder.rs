@@ -8,9 +8,8 @@ use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use codeq::config::CodeqConfig;
 use codeq::Encode;
-use codeq::Segment;
-use codeq::WithChecksum;
 
 use crate::io_util::DEFAULT_READ_BUF_SIZE;
 use crate::io_util::DEFAULT_WRITE_BUF_SIZE;
@@ -19,6 +18,8 @@ use crate::v001::block::Block;
 use crate::v001::block_index::BlockIndexEntry;
 use crate::v001::header::Header;
 use crate::v001::rotbl::stat::RotblStat;
+use crate::v001::types::Checksum;
+use crate::v001::types::Segment;
 use crate::v001::BlockIndex;
 use crate::v001::Config;
 use crate::v001::Footer;
@@ -86,7 +87,7 @@ impl Builder {
 
         builder.offset += builder.header.encode(&mut builder.f)?;
 
-        let tid = WithChecksum::new(builder.table_id);
+        let tid = Checksum::wrap(builder.table_id);
         builder.offset += tid.encode(&mut builder.f)?;
 
         Ok(builder)

@@ -6,11 +6,11 @@ use std::io::Write;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-use codeq::ChecksumReader;
-use codeq::ChecksumWriter;
+use codeq::config::CodeqConfig;
 
 use crate::buf::new_uninitialized;
 use crate::num::format_num;
+use crate::v001::types::Checksum;
 
 /// Stats about a [`Rotbl`] instance.
 ///
@@ -82,14 +82,14 @@ impl codeq::Encode for RotblStat {
         let len = buf.len() as u64;
 
         {
-            let mut cw = ChecksumWriter::new(&mut w);
+            let mut cw = Checksum::new_writer(&mut w);
             cw.write_u64::<BigEndian>(len)?;
             n += 8;
 
             n += cw.write_checksum()?;
         }
 
-        let mut cw = ChecksumWriter::new(w);
+        let mut cw = Checksum::new_writer(w);
         cw.write_all(&buf)?;
         n += len as usize;
 
@@ -102,13 +102,13 @@ impl codeq::Encode for RotblStat {
 impl codeq::Decode for RotblStat {
     fn decode<R: Read>(mut r: R) -> Result<Self, Error> {
         let len = {
-            let mut cr = ChecksumReader::new(&mut r);
+            let mut cr = Checksum::new_reader(&mut r);
             let len = cr.read_u64::<BigEndian>()? as usize;
             cr.verify_checksum(|| "RotblStat::decode() for `len`")?;
             len
         };
 
-        let mut cr = ChecksumReader::new(r);
+        let mut cr = Checksum::new_reader(r);
 
         let mut buf = new_uninitialized(len);
         cr.read_exact(&mut buf)?;

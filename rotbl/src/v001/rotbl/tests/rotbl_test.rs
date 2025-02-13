@@ -4,7 +4,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use codeq::Segment;
 use tempfile::TempDir;
 
 use crate::typ::Type;
@@ -18,6 +17,7 @@ use crate::v001::rotbl::stat::RotblStat;
 use crate::v001::rotbl::Rotbl;
 use crate::v001::testing::bb;
 use crate::v001::testing::ss;
+use crate::v001::types::Segment;
 use crate::v001::RotblMeta;
 use crate::v001::SeqMarked;
 use crate::version::Version;

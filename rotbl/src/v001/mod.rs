@@ -17,6 +17,7 @@ pub mod rotbl_meta_payload;
 pub(crate) mod testing;
 
 pub(crate) mod bincode_config;
+pub(crate) mod types;
 
 pub use block_id::BlockId;
 pub use block_index::BlockIndex;

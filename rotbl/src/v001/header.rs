@@ -3,11 +3,11 @@ use std::io;
 use std::io::Read;
 use std::io::Write;
 
-use codeq::ChecksumReader;
-use codeq::ChecksumWriter;
+use codeq::config::CodeqConfig;
 use codeq::FixedSize;
 
 use crate::typ::Type;
+use crate::v001::types::Checksum;
 use crate::version::Version;
 
 #[derive(Debug)]
@@ -39,7 +39,7 @@ impl FixedSize for Header {
 impl codeq::Encode for Header {
     fn encode<W: Write>(&self, w: W) -> Result<usize, io::Error> {
         let mut n = 0;
-        let mut hw = ChecksumWriter::new(w);
+        let mut hw = Checksum::new_writer(w);
 
         n += self.typ.encode(&mut hw)?;
         n += self.version.encode(&mut hw)?;
@@ -51,7 +51,7 @@ impl codeq::Encode for Header {
 
 impl codeq::Decode for Header {
     fn decode<R: Read>(mut r: R) -> Result<Self, io::Error> {
-        let mut cr = ChecksumReader::new(&mut r);
+        let mut cr = Checksum::new_reader(&mut r);
 
         let t = Type::decode(&mut cr)?;
         let version = Version::decode(&mut cr)?;

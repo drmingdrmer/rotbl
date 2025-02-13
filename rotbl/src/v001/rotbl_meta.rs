@@ -3,14 +3,14 @@ use std::io::Error;
 use std::io::Read;
 use std::io::Write;
 
-use codeq::ChecksumReader;
-use codeq::ChecksumWriter;
-use codeq::WithChecksum;
+use codeq::config::CodeqConfig;
 
 use crate::buf;
 use crate::typ::Type;
 use crate::v001::header::Header;
 use crate::v001::rotbl_meta_payload::RotblMetaPayload;
+use crate::v001::types::Checksum;
+use crate::v001::types::WithChecksum;
 use crate::version::Version;
 
 #[derive(Debug)]
@@ -51,14 +51,14 @@ impl codeq::Encode for RotblMeta {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0usize;
 
-        let mut cw = ChecksumWriter::new(&mut w);
+        let mut cw = Checksum::new_writer(&mut w);
 
         n += self.header.encode(&mut cw)?;
 
         let encoded_data = serde_json::to_vec(&self.payload)?;
         let encoded_size = encoded_data.len() as u64;
 
-        let s = WithChecksum::new(encoded_size);
+        let s = Checksum::wrap(encoded_size);
         n += s.encode(&mut cw)?;
 
         cw.write_all(&encoded_data)?;
@@ -72,7 +72,7 @@ impl codeq::Encode for RotblMeta {
 
 impl codeq::Decode for RotblMeta {
     fn decode<R: Read>(r: R) -> Result<Self, Error> {
-        let mut cr = ChecksumReader::new(r);
+        let mut cr = Checksum::new_reader(r);
 
         let header = Header::decode(&mut cr)?;
         assert_eq!(header, Header::new(Type::RotblMeta, Version::V001));

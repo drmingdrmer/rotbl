@@ -16,7 +16,6 @@ use std::sync::Mutex;
 
 use codeq::Decode;
 use codeq::FixedSize;
-use codeq::WithChecksum;
 use futures::stream::BoxStream;
 
 use crate::buf::new_uninitialized;
@@ -32,6 +31,7 @@ use crate::v001::header::Header;
 use crate::v001::range::RangeArg;
 use crate::v001::rotbl::access_stat::AccessStat;
 use crate::v001::rotbl_meta::RotblMeta;
+use crate::v001::types::WithChecksum;
 use crate::v001::CacheStat;
 use crate::v001::Config;
 use crate::v001::SeqMarked;

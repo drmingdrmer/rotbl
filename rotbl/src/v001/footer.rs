@@ -3,7 +3,8 @@ use std::io::Read;
 use std::io::Write;
 
 use codeq::FixedSize;
-use codeq::Segment;
+
+use crate::v001::types::Segment;
 
 #[derive(Debug)]
 #[derive(Clone)]
@@ -65,9 +66,9 @@ impl codeq::Decode for Footer {
 #[cfg(test)]
 mod tests {
     use codeq::testing::test_codec;
-    use codeq::Segment;
 
     use crate::v001::footer::Footer;
+    use crate::v001::types::Segment;
 
     #[test]
     fn test_footer_codec() -> anyhow::Result<()> {

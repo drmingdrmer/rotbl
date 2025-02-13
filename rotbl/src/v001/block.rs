@@ -6,8 +6,7 @@ use std::io::Read;
 use std::io::Write;
 use std::ops::RangeBounds;
 
-use codeq::ChecksumReader;
-use codeq::ChecksumWriter;
+use codeq::config::CodeqConfig;
 use codeq::Decode;
 use codeq::Encode;
 
@@ -16,6 +15,7 @@ use crate::typ::Type;
 use crate::v001::bincode_config::bincode_config;
 use crate::v001::block_encoding_meta::BlockEncodingMeta;
 use crate::v001::header::Header;
+use crate::v001::types::Checksum;
 use crate::v001::SeqMarked;
 use crate::version::Version;
 
@@ -77,7 +77,7 @@ impl Encode for Block {
             .map_err(|e| Error::new(std::io::ErrorKind::InvalidData, e))?;
         let encoded_size = encoded_data.len() as u64;
 
-        let mut cw = ChecksumWriter::new(&mut w);
+        let mut cw = Checksum::new_writer(&mut w);
 
         n += self.header.encode(&mut cw)?;
 
@@ -95,7 +95,7 @@ impl Encode for Block {
 
 impl Decode for Block {
     fn decode<R: Read>(r: R) -> Result<Self, Error> {
-        let mut cr = ChecksumReader::new(r);
+        let mut cr = Checksum::new_reader(r);
 
         let header = Header::decode(&mut cr)?;
         assert_eq!(header, Header::new(Type::Block, Version::V001));

@@ -6,13 +6,13 @@ use std::io::Write;
 use std::ops::Bound;
 use std::ops::RangeBounds;
 
-use codeq::ChecksumReader;
-use codeq::ChecksumWriter;
-use codeq::WithChecksum;
+use codeq::config::CodeqConfig;
 
 use crate::buf::new_uninitialized;
 use crate::typ::Type;
 use crate::v001::header::Header;
+use crate::v001::types::Checksum;
+use crate::v001::types::WithChecksum;
 use crate::version::Version;
 
 /// The meta data of a block, which is also an index entry in the block index.
@@ -115,11 +115,11 @@ impl codeq::Encode for BlockIndex {
         let encoded_data = serde_json::to_vec(&self.data)?;
         let encoded_size = encoded_data.len() as u64;
 
-        let mut cw = ChecksumWriter::new(&mut w);
+        let mut cw = Checksum::new_writer(&mut w);
 
         n += self.header.encode(&mut cw)?;
 
-        n += WithChecksum::new(encoded_size).encode(&mut cw)?;
+        n += Checksum::wrap(encoded_size).encode(&mut cw)?;
 
         cw.write_all(&encoded_data)?;
         n += encoded_size as usize;
@@ -132,7 +132,7 @@ impl codeq::Encode for BlockIndex {
 
 impl codeq::Decode for BlockIndex {
     fn decode<R: Read>(r: R) -> Result<Self, io::Error> {
-        let mut cr = ChecksumReader::new(r);
+        let mut cr = Checksum::new_reader(r);
 
         let header = Header::decode(&mut cr)?;
         assert_eq!(header, Header::new(Type::BlockIndex, Version::V001));

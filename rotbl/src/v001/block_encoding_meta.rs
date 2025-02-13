@@ -5,10 +5,11 @@ use std::io::Write;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
-use codeq::ChecksumReader;
-use codeq::ChecksumWriter;
+use codeq::config::CodeqConfig;
 
-/// The meta data of a encoded block
+use crate::v001::types::Checksum;
+
+/// The metadata of an encoded block
 #[derive(Debug)]
 #[derive(Clone)]
 #[derive(PartialEq, Eq)]
@@ -40,7 +41,7 @@ impl BlockEncodingMeta {
 impl codeq::Encode for BlockEncodingMeta {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
         let mut n = 0;
-        let mut cw = ChecksumWriter::new(&mut w);
+        let mut cw = Checksum::new_writer(&mut w);
 
         cw.write_u64::<BigEndian>(self.block_num as u64)?;
         n += 8;
@@ -54,7 +55,7 @@ impl codeq::Encode for BlockEncodingMeta {
 
 impl codeq::Decode for BlockEncodingMeta {
     fn decode<R: Read>(r: R) -> Result<Self, Error> {
-        let mut cr = ChecksumReader::new(r);
+        let mut cr = Checksum::new_reader(r);
 
         let block_num = cr.read_u64::<BigEndian>()? as u32;
         let data_encoded_size = cr.read_u64::<BigEndian>()?;
