@@ -11,9 +11,8 @@ async fn test_rotbl_cache_cap_limit() -> anyhow::Result<()> {
     config.block_cache.max_items = Some(100);
 
     let ctx = TestContext::with_config(config)?;
-    let p = ctx.db_path();
 
-    let (t, _index_data) = rotbl_test::create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let (t, _index_data) = rotbl_test::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     let stat = t.stat();
     println!("{}", stat);
@@ -45,9 +44,8 @@ async fn test_rotbl_cache_item_limit() -> anyhow::Result<()> {
     config.block_cache.max_items = Some(3);
 
     let ctx = TestContext::with_config(config)?;
-    let p = ctx.db_path();
 
-    let (t, _index_data) = rotbl_test::create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let (t, _index_data) = rotbl_test::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     let stat = t.stat();
     println!("{}", stat);

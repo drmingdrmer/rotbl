@@ -6,11 +6,9 @@ pub mod stat;
 #[cfg(test)]
 mod tests;
 
-use std::fs;
 use std::io;
 use std::io::Read;
 use std::io::Seek;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -21,6 +19,8 @@ use log::debug;
 
 use crate::buf::new_uninitialized;
 use crate::io_util;
+use crate::storage::BoxReader;
+use crate::storage::Storage;
 use crate::typ::Type;
 use crate::v001::block::Block;
 use crate::v001::block_cache::BlockCache;
@@ -58,7 +58,7 @@ pub struct Rotbl {
     /// The db this table belongs
     block_cache: Arc<Mutex<BlockCache>>,
 
-    file: Arc<Mutex<io::BufReader<fs::File>>>,
+    file: Arc<Mutex<BoxReader>>,
 
     /// On disk file size in bytes
     file_size: u64,
@@ -82,13 +82,14 @@ pub struct Rotbl {
 
 impl Rotbl {
     /// Create a new table from a series of key-value pairs
-    pub fn create_table<P: AsRef<Path>>(
+    pub fn create_table<S: Storage>(
+        storage: S,
         config: Config,
-        path: P,
+        path: &str,
         meta: RotblMeta,
         kvs: impl IntoIterator<Item = (String, SeqMarked)>,
     ) -> Result<Rotbl, io::Error> {
-        let mut builder = builder::Builder::new(config, path)?;
+        let mut builder = builder::Builder::new(storage, config, path)?;
         for (k, v) in kvs {
             builder.append_kv(k, v)?;
         }
@@ -97,10 +98,8 @@ impl Rotbl {
         Ok(t)
     }
 
-    pub fn open<P: AsRef<Path>>(config: Config, path: P) -> Result<Self, io::Error> {
-        let f = fs::OpenOptions::new().create(false).create_new(false).read(true).open(&path)?;
-
-        let mut f = io::BufReader::with_capacity(16 * 1024 * 1024, f);
+    pub fn open<S: Storage>(mut storage: S, config: Config, path: &str) -> Result<Self, io::Error> {
+        let mut f = storage.reader(path)?;
 
         let header = {
             let header = Header::decode(&mut f)?;

@@ -1,6 +1,8 @@
 use std::fs;
+use std::path::PathBuf;
 use std::sync::Arc;
 
+use rotbl::storage::impls::fs::FsStorage;
 use rotbl::v001::Builder;
 use rotbl::v001::Config;
 use rotbl::v001::Rotbl;
@@ -18,16 +20,18 @@ fn generate_data() -> anyhow::Result<()> {
 
     let version_dir = get_version_dir(CURRENT_VERSION);
     let db_dir = format!("{}/db", version_dir);
-    let rotbl_path = format!("{}/db/x.rot", version_dir);
+    let file_name = "x.rot";
     let dump_path = format!("{}/dump.txt", version_dir);
 
     fs::create_dir_all(&db_dir)?;
+
+    let storage = FsStorage::new(PathBuf::from(&db_dir));
 
     let n_keys = 512;
     let mut key = ss("aaa");
     let rotbl_meta = RotblMeta::new(5, "hello");
 
-    let mut builder = Builder::new(config, rotbl_path)?;
+    let mut builder = Builder::new(storage, config, file_name)?;
     for i in 0..n_keys {
         let v = if i % 2 == 0 {
             SeqMarked::new_tombstone(i)
@@ -52,12 +56,15 @@ fn generate_data() -> anyhow::Result<()> {
 #[test]
 fn test_compat() -> anyhow::Result<()> {
     let version_dir = get_version_dir(CURRENT_VERSION);
-    let rotbl_path = format!("{}/db/x.rot", version_dir);
+    let db_dir = format!("{}/db", version_dir);
+    let file_name = "x.rot";
     let dump_path = format!("{}/dump.txt", version_dir);
+
+    let storage = FsStorage::new(PathBuf::from(db_dir));
 
     let config = Config::default();
 
-    let t = Arc::new(Rotbl::open(config, rotbl_path)?);
+    let t = Arc::new(Rotbl::open(storage, config, file_name)?);
     let data = t.dump().collect::<Result<Vec<_>, _>>()?;
     let data = data.join("\n");
 

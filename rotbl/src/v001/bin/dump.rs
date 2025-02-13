@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
+use rotbl::storage::impls::fs::FsStorage;
 use rotbl::v001::BlockCacheConfig;
 use rotbl::v001::Config;
 use rotbl::v001::Rotbl;
@@ -21,7 +22,14 @@ fn main() -> Result<(), io::Error> {
         BlockCacheConfig::default().with_max_items(100).with_capacity(256 * 1024 * 1024),
     );
 
-    let r = Rotbl::open(config, args.path).unwrap();
+    let path = args.path.clone();
+    // split path into dir and file
+    let dir = path.parent().unwrap();
+    let file = path.file_name().unwrap();
+
+    let storage = FsStorage::new(dir.to_path_buf());
+
+    let r = Rotbl::open(storage, config, file.to_str().unwrap()).unwrap();
     let r = Arc::new(r);
 
     for s in r.dump() {

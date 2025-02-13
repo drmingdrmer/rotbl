@@ -1,9 +1,11 @@
 use std::hint::black_box;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
 use futures::TryStreamExt;
 use rotbl::num::format_num;
+use rotbl::storage::impls::fs::FsStorage;
 use rotbl::v001::BlockCacheConfig;
 use rotbl::v001::BlockConfig;
 use rotbl::v001::Builder;
@@ -50,9 +52,11 @@ async fn build(db: &DB, n_keys: i32) -> Rotbl {
     let key_len = 64;
     let val_len = 256;
 
+    let storage = FsStorage::new(PathBuf::from("./_rotbl"));
+
     let meta = RotblMeta::new(1, "hello");
 
-    let mut b = Builder::new(db.config(), "./_rotbl/foo").unwrap();
+    let mut b = Builder::new(storage, db.config(), "foo").unwrap();
 
     let mut k = "a".repeat(key_len);
     let mut v = "a".repeat(val_len);

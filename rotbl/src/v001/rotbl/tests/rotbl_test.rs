@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 use tempfile::TempDir;
 
+use crate::storage::impls::fs::FsStorage;
+use crate::storage::Storage;
 use crate::typ::Type;
 use crate::v001::block_index::BlockIndex;
 use crate::v001::block_index::BlockIndexEntry;
@@ -25,9 +27,8 @@ use crate::version::Version;
 #[test]
 fn test_create_table() -> anyhow::Result<()> {
     let ctx = TestContext::new()?;
-    let p = ctx.db_path();
 
-    let (t, index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let (t, index_data) = create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     println!("{:?}", t);
 
@@ -67,13 +68,12 @@ fn test_create_table() -> anyhow::Result<()> {
 #[test]
 fn test_open_table() -> anyhow::Result<()> {
     let ctx = TestContext::new()?;
-    let p = ctx.db_path();
 
-    let (t, index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let (t, index_data) = create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     println!("{:?}", t);
 
-    let t = Rotbl::open(ctx.config(), p.join("foo.rot"))?;
+    let t = Rotbl::open(ctx.storage(), ctx.config(), "foo.rot")?;
 
     assert_eq!(t.header, Header::new(Type::Rotbl, Version::V001));
     // assert_eq!(t.table_id, 12);
@@ -110,9 +110,8 @@ fn test_open_table() -> anyhow::Result<()> {
 #[test]
 fn test_rotbl_load_block() -> anyhow::Result<()> {
     let ctx = TestContext::new()?;
-    let p = ctx.db_path();
 
-    let (t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let (t, _index_data) = create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     {
         let b = t.load_block(0)?;
@@ -132,9 +131,8 @@ fn test_rotbl_load_block() -> anyhow::Result<()> {
 #[test]
 fn test_rotbl_get_block() -> anyhow::Result<()> {
     let ctx = TestContext::new()?;
-    let p = ctx.db_path();
 
-    let (t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let (t, _index_data) = create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     assert!(t.get_block(0).is_none());
     t.load_block(0)?;
@@ -149,33 +147,43 @@ fn test_rotbl_get_block() -> anyhow::Result<()> {
     Ok(())
 }
 
-pub(crate) struct TestContext {
+pub(crate) struct TestContext<S>
+where S: Storage
+{
     #[allow(dead_code)]
     config: Config,
     db: Arc<DB>,
 
     temp_dir: TempDir,
+    storage: S,
 }
 
-impl TestContext {
-    pub(crate) fn new() -> anyhow::Result<TestContext> {
+impl TestContext<FsStorage> {
+    pub(crate) fn new() -> anyhow::Result<Self> {
         let mut config = Config::default();
         config.block_config.max_items = Some(3);
 
         Self::with_config(config)
     }
 
-    pub(crate) fn with_config(config: Config) -> anyhow::Result<TestContext> {
+    pub(crate) fn with_config(config: Config) -> anyhow::Result<Self> {
         let db = DB::open(config.clone())?;
         let temp_dir = tempfile::tempdir()?;
+
+        let storage = FsStorage::new(temp_dir.path().to_path_buf());
 
         Ok(TestContext {
             config,
             db,
             temp_dir,
+            storage,
         })
     }
+}
 
+impl<S> TestContext<S>
+where S: Storage
+{
     pub(crate) fn db(&self) -> &Arc<DB> {
         &self.db
     }
@@ -184,8 +192,12 @@ impl TestContext {
         self.config.clone()
     }
 
-    pub(crate) fn db_path(&self) -> &Path {
+    pub(crate) fn base_dir(&self) -> &Path {
         self.temp_dir.path()
+    }
+
+    pub(crate) fn storage(&self) -> S {
+        self.storage.clone()
     }
 }
 
@@ -201,10 +213,14 @@ impl TestContext {
 /// d: 2, true, D,
 /// ---
 /// ```
-pub(crate) fn create_tmp_table<P: AsRef<Path>>(
+pub(crate) fn create_tmp_table<S>(
+    storage: S,
     db: &DB,
-    path: P,
-) -> anyhow::Result<(Rotbl, Vec<BlockIndexEntry>)> {
+    path: &str,
+) -> anyhow::Result<(Rotbl, Vec<BlockIndexEntry>)>
+where
+    S: Storage,
+{
     let kvs = maplit::btreemap! {
         ss("a") => SeqMarked::new_tombstone(1),
         ss("b") => SeqMarked::new_normal(2, bb("B")),
@@ -213,7 +229,7 @@ pub(crate) fn create_tmp_table<P: AsRef<Path>>(
     };
 
     let rotbl_meta = RotblMeta::new(5, "hello");
-    let t = Rotbl::create_table(db.config(), path, rotbl_meta, kvs)?;
+    let t = Rotbl::create_table(storage, db.config(), path, rotbl_meta, kvs)?;
 
     let mut index_data = Vec::new();
     index_data.push(BlockIndexEntry {

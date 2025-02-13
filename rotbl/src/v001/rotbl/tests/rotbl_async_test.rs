@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use futures::TryStreamExt;
 
+use crate::storage::impls::fs::FsStorage;
 use crate::v001::rotbl::tests::rotbl_test::create_tmp_table;
 use crate::v001::rotbl::tests::rotbl_test::TestContext;
 use crate::v001::rotbl::Rotbl;
@@ -15,11 +16,12 @@ use crate::v001::SeqMarked;
 #[tokio::test(flavor = "multi_thread")]
 async fn test_rotbl_async_get() -> anyhow::Result<()> {
     let ctx = TestContext::new()?;
-    let p = ctx.db_path();
 
-    let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let storage = FsStorage::new(ctx.base_dir().to_path_buf());
 
-    let t = Rotbl::open(ctx.db().config.clone(), p.join("foo.rot"))?;
+    let (_t, _index_data) = create_tmp_table(storage.clone(), ctx.db(), "foo.rot")?;
+
+    let t = Rotbl::open(storage, ctx.db().config.clone(), "foo.rot")?;
 
     // Get from non-existent block
 
@@ -53,11 +55,12 @@ async fn test_rotbl_async_get() -> anyhow::Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn test_rotbl_async_range() -> anyhow::Result<()> {
     let ctx = TestContext::new()?;
-    let p = ctx.db_path();
 
-    let (_t, _index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+    let storage = FsStorage::new(ctx.base_dir().to_path_buf());
 
-    let t = Rotbl::open(ctx.db().config.clone(), p.join("foo.rot"))?;
+    let (_t, _index_data) = create_tmp_table(storage.clone(), ctx.db(), "foo.rot")?;
+
+    let t = Rotbl::open(storage, ctx.db().config.clone(), "foo.rot")?;
     let t = Arc::new(t);
 
     // Full range

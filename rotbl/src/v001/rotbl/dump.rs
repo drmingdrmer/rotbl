@@ -90,9 +90,8 @@ mod tests {
     #[test]
     fn test_dump() -> anyhow::Result<()> {
         let ctx = TestContext::new()?;
-        let p = ctx.db_path();
 
-        let (t, index_data) = create_tmp_table(ctx.db(), p.join("foo.rot"))?;
+        let (t, index_data) = create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
         let _ = index_data;
 
         let d = Dump::new(Arc::new(t));

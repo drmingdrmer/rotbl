@@ -1,18 +1,13 @@
 use std::collections::BTreeMap;
-use std::fs;
-use std::fs::File;
 use std::io;
-use std::io::Seek;
-use std::io::Write;
-use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
 use codeq::config::CodeqConfig;
 use codeq::Encode;
 
-use crate::io_util::DEFAULT_READ_BUF_SIZE;
-use crate::io_util::DEFAULT_WRITE_BUF_SIZE;
+use crate::storage::BoxWriter;
+use crate::storage::Storage;
 use crate::typ::Type;
 use crate::v001::block::Block;
 use crate::v001::block_index::BlockIndexEntry;
@@ -29,7 +24,9 @@ use crate::v001::SeqMarked;
 use crate::v001::DB;
 use crate::version::Version;
 
-pub struct Builder {
+pub struct Builder<S>
+where S: Storage
+{
     config: Config,
 
     offset: usize,
@@ -44,25 +41,24 @@ pub struct Builder {
 
     prev: Option<String>,
 
-    f: io::BufWriter<File>,
+    storage: S,
+
+    path: String,
+
+    writer: BoxWriter,
+
     index: Vec<BlockIndexEntry>,
 }
 
-impl Builder {
-    pub fn new<P: AsRef<Path>>(config: Config, path: P) -> Result<Self, io::Error> {
+impl<S> Builder<S>
+where S: Storage
+{
+    pub fn new(mut storage: S, config: Config, path: &str) -> Result<Self, io::Error> {
         // Table id is not supported yet in this version,
         // and is always 0.
         let table_id = 0;
 
-        let f = fs::OpenOptions::new()
-            // .create(true)
-            .create_new(true)
-            .truncate(true)
-            .read(true)
-            .write(true)
-            .open(&path)?;
-
-        let f = io::BufWriter::with_capacity(DEFAULT_WRITE_BUF_SIZE, f);
+        let f = storage.writer(path)?;
 
         let chunk_size = config.block_config.max_items();
         if chunk_size == 0 {
@@ -81,14 +77,16 @@ impl Builder {
             stat: RotblStat::default(),
             this_chunk: Vec::with_capacity(chunk_size),
             prev: None,
-            f,
+            storage,
+            path: path.to_string(),
+            writer: f,
             index: Vec::new(),
         };
 
-        builder.offset += builder.header.encode(&mut builder.f)?;
+        builder.offset += builder.header.encode(&mut builder.writer)?;
 
         let tid = Checksum::wrap(builder.table_id);
-        builder.offset += tid.encode(&mut builder.f)?;
+        builder.offset += tid.encode(&mut builder.writer)?;
 
         Ok(builder)
     }
@@ -132,7 +130,7 @@ impl Builder {
         let block = Block::new(self.stat.block_num, bt);
 
         let block_offset = self.offset as u64;
-        let block_size = block.encode(&mut self.f)?;
+        let block_size = block.encode(&mut self.writer)?;
         self.offset += block_size;
         self.stat.data_size += block_size as u64;
 
@@ -159,44 +157,38 @@ impl Builder {
         // Write block index
 
         let block_index = BlockIndex::new(self.index);
-        self.stat.index_size = block_index.encode(&mut self.f)? as u64;
+        self.stat.index_size = block_index.encode(&mut self.writer)? as u64;
 
         let blog_index_seg = Segment::new(self.offset as u64, self.stat.index_size);
         self.offset += self.stat.index_size as usize;
 
         // Write Meta
 
-        let meta_size = rotbl_meta.encode(&mut self.f)?;
+        let meta_size = rotbl_meta.encode(&mut self.writer)?;
         let meta_seg = Segment::new(self.offset as u64, meta_size as u64);
         self.offset += meta_size;
 
         // Write Stat
 
-        let stat_size = self.stat.encode(&mut self.f)?;
+        let stat_size = self.stat.encode(&mut self.writer)?;
         let stat_seg = Segment::new(self.offset as u64, stat_size as u64);
         self.offset += stat_size;
 
         // Write footer
 
         let footer = Footer::new(blog_index_seg, meta_seg, stat_seg);
-        self.offset += footer.encode(&mut self.f)?;
+        self.offset += footer.encode(&mut self.writer)?;
 
-        self.f.flush()?;
+        self.writer.commit()?;
 
-        let mut f = self.f.into_inner().map_err(|e| e.into_error())?;
-
-        f.sync_all()?;
-
-        let file_size = f.seek(io::SeekFrom::End(0))?;
-
-        let reader = io::BufReader::with_capacity(DEFAULT_READ_BUF_SIZE, f);
+        let reader = self.storage.reader(&self.path)?;
 
         let block_cache = DB::new_cache(self.config.clone());
 
         let r = Rotbl {
             block_cache,
             file: Arc::new(Mutex::new(reader)),
-            file_size,
+            file_size: self.offset as u64,
             header: self.header,
             table_id: self.table_id,
             meta: rotbl_meta,
