@@ -120,7 +120,7 @@ impl<D> SeqMarked<D> {
     where D: fmt::Debug {
         struct DisplaySeqMarked<'a, D>(&'a SeqMarked<D>);
 
-        impl<'a, D> fmt::Display for DisplaySeqMarked<'a, D>
+        impl<D> fmt::Display for DisplaySeqMarked<'_, D>
         where D: fmt::Debug
         {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
