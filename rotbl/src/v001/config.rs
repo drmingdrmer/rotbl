@@ -3,21 +3,16 @@
 #[derive(Clone)]
 pub struct BlockCacheConfig {
     /// Max blocks to cache
-    pub(crate) max_items: Option<usize>,
+    pub max_items: Option<usize>,
 
     /// Max bytes to cache
-    pub(crate) capacity: Option<usize>,
+    pub capacity: Option<usize>,
 }
 
 #[allow(clippy::identity_op)]
 impl BlockCacheConfig {
     const DEFAULT_MAX_ITEM: usize = 1024;
     const DEFAULT_CAPACITY: usize = 1 * 1024 * 1024 * 1024;
-
-    pub fn fill_default_values(&mut self) {
-        self.max_items = self.max_items.or(Some(Self::DEFAULT_MAX_ITEM));
-        self.capacity = self.capacity.or(Some(Self::DEFAULT_CAPACITY));
-    }
 
     pub fn with_max_items(mut self, max_items: usize) -> Self {
         self.max_items = Some(max_items);
@@ -28,6 +23,14 @@ impl BlockCacheConfig {
         self.capacity = Some(capacity);
         self
     }
+
+    pub fn max_items(&self) -> usize {
+        self.max_items.unwrap_or(Self::DEFAULT_MAX_ITEM)
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity.unwrap_or(Self::DEFAULT_CAPACITY)
+    }
 }
 
 #[derive(Default)]
@@ -35,7 +38,7 @@ impl BlockCacheConfig {
 #[derive(Clone)]
 pub struct BlockConfig {
     /// Max item per block
-    pub(crate) max_items: Option<usize>,
+    pub max_items: Option<usize>,
 }
 
 impl BlockConfig {
@@ -48,10 +51,6 @@ impl BlockConfig {
 
     pub fn max_items(&self) -> usize {
         self.max_items.unwrap_or(Self::DEFAULT_MAX_ITEM)
-    }
-
-    pub fn fill_default_values(&mut self) {
-        self.max_items = self.max_items.or(Some(Self::DEFAULT_MAX_ITEM));
     }
 }
 
@@ -104,6 +103,11 @@ impl Config {
         self
     }
 
+    /// Return true if debug check is enabled. Default is true.
+    pub fn debug_check(&self) -> bool {
+        self.debug_check.unwrap_or(true)
+    }
+
     pub fn disable_cache(&mut self) {
         self.block_cache.max_items = Some(0);
         self.block_cache.capacity = Some(0);
@@ -115,7 +119,5 @@ impl Config {
 
     pub fn fill_default_values(&mut self) {
         self.debug_check = Some(true);
-        self.block_config.fill_default_values();
-        self.block_cache.fill_default_values();
     }
 }

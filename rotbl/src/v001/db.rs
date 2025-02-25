@@ -17,9 +17,7 @@ pub struct DB {
 }
 
 impl DB {
-    pub fn open(mut config: Config) -> Result<Arc<Self>, io::Error> {
-        config.fill_default_values();
-
+    pub fn open(config: Config) -> Result<Arc<Self>, io::Error> {
         let block_cache = Self::new_cache(config.clone());
 
         let db = Self {
@@ -34,12 +32,9 @@ impl DB {
         self.config.clone()
     }
 
-    pub fn new_cache(mut config: Config) -> Arc<Mutex<BlockCache>> {
-        config.fill_default_values();
-
+    pub fn new_cache(config: Config) -> Arc<Mutex<BlockCache>> {
         let bc = &config.block_cache;
-        let block_cache =
-            LruCache::with_meter(bc.max_items.unwrap(), bc.capacity.unwrap(), BlockMeter);
+        let block_cache = LruCache::with_meter(bc.max_items(), bc.capacity(), BlockMeter);
         Arc::new(Mutex::new(block_cache))
     }
 }

@@ -96,7 +96,7 @@ impl Builder {
     pub fn append_kv(&mut self, k: impl ToString, v: SeqMarked) -> Result<(), io::Error> {
         let k = k.to_string();
 
-        if self.config.debug_check == Some(true) {
+        if self.config.debug_check() {
             assert!(
                 Some(&k) > self.prev.as_ref(),
                 "this key {:?} must be greater than prev {:?}",
