@@ -49,6 +49,7 @@ num-format         = { version = "0.4.4" }
 criterion         = { version = "0.5.1" }
 pretty_assertions = { version = "1.0.0" }
 tempfile          = { version = "3.4.0" }
+libtest-mimic     = { version = "0.8.1" }
 
 clap              = { version = "4.4.2", features = ["derive"] }
 log               = { version = "0.4.27" }

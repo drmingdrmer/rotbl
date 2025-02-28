@@ -1,11 +1,22 @@
+use libtest_mimic::Trial;
+use rotbl::storage::Storage;
+
 use crate::context::TestContext;
 use crate::temp_table;
+use crate::trials;
+use crate::utils::NewContext;
 
-#[test]
-fn test_rotbl_get_block() -> anyhow::Result<()> {
-    let ctx = TestContext::new()?;
+pub(crate) fn tests<S: Storage>(new_ctx: impl NewContext<S>, trials: &mut Vec<Trial>) {
+    trials.extend(trials!(
+        new_ctx,
+        test_rotbl_get_block,
+        test_rotbl_load_block
+    ));
+}
 
-    let (t, _index_data) = temp_table::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
+fn test_rotbl_get_block<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
+    let (t, _index_data) =
+        temp_table::create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
 
     assert!(t.get_block(0).is_none());
     t.load_block(0)?;
@@ -20,11 +31,9 @@ fn test_rotbl_get_block() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[test]
-fn test_rotbl_load_block() -> anyhow::Result<()> {
-    let ctx = TestContext::new()?;
-
-    let (t, _index_data) = temp_table::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
+fn test_rotbl_load_block<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
+    let (t, _index_data) =
+        temp_table::create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
 
     {
         let b = t.load_block(0)?;

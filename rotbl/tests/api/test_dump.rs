@@ -1,16 +1,21 @@
 use std::io;
 use std::sync::Arc;
 
+use libtest_mimic::Trial;
+use rotbl::storage::Storage;
 use rotbl::v001::Dump;
 
 use crate::context::TestContext;
 use crate::temp_table::create_tmp_table;
+use crate::trials;
+use crate::utils::NewContext;
 
-#[test]
-fn test_dump() -> anyhow::Result<()> {
-    let ctx = TestContext::new()?;
+pub(crate) fn tests<S: Storage>(new_ctx: impl NewContext<S>, trials: &mut Vec<Trial>) {
+    trials.extend(trials!(new_ctx, test_dump));
+}
 
-    let (t, index_data) = create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
+fn test_dump<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
+    let (t, index_data) = create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
     let _ = index_data;
 
     let d = Dump::new(Arc::new(t));

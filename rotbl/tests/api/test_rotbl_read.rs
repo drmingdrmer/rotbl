@@ -1,24 +1,30 @@
 use std::sync::Arc;
 
 use futures::TryStreamExt;
-use rotbl::storage::impls::fs::FsStorage;
+use libtest_mimic::Trial;
+use rotbl::storage::Storage;
 use rotbl::v001::Rotbl;
 use rotbl::v001::SeqMarked;
 
+use crate::async_trials;
 use crate::context::TestContext;
 use crate::temp_table::create_tmp_table;
 use crate::utils::bb;
 use crate::utils::ss;
+use crate::utils::NewContext;
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_rotbl_async_get() -> anyhow::Result<()> {
-    let ctx = TestContext::new()?;
+pub fn tests<S: Storage>(new_ctx: impl NewContext<S>, trials: &mut Vec<Trial>) {
+    trials.extend(async_trials!(
+        new_ctx,
+        test_rotbl_async_get,
+        test_rotbl_async_range
+    ));
+}
 
-    let storage = FsStorage::new(ctx.base_dir().to_path_buf());
+async fn test_rotbl_async_get<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
+    let (_t, _index_data) = create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
 
-    let (_t, _index_data) = create_tmp_table(storage.clone(), ctx.db(), "foo.rot")?;
-
-    let t = Rotbl::open(storage, ctx.db().config(), "foo.rot")?;
+    let t = Rotbl::open(ctx.storage(), ctx.config(), "foo.rot")?;
 
     // Get from non-existent block
 
@@ -49,15 +55,10 @@ async fn test_rotbl_async_get() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn test_rotbl_async_range() -> anyhow::Result<()> {
-    let ctx = TestContext::new()?;
+async fn test_rotbl_async_range<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
+    let (_t, _index_data) = create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
 
-    let storage = FsStorage::new(ctx.base_dir().to_path_buf());
-
-    let (_t, _index_data) = create_tmp_table(storage.clone(), ctx.db(), "foo.rot")?;
-
-    let t = Rotbl::open(storage, ctx.db().config(), "foo.rot")?;
+    let t = Rotbl::open(ctx.storage(), ctx.config(), "foo.rot")?;
     let t = Arc::new(t);
 
     // Full range

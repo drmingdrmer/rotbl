@@ -33,9 +33,6 @@ bytes                = { workspace = true }
 codeq                = { workspace = true }
 serde                = { workspace = true }
 serde_json           = { workspace = true }
-#borsh                = { workspace = true }
-#msgpacker            = { workspace = true }
-#rmp-serde            = { workspace = true }
 
 #byte-unit            = { workspace = true }
 num-format            = { workspace = true }
@@ -48,6 +45,7 @@ log                   = { workspace = true }
 [dev-dependencies]
 anyhow               = { workspace = true }
 criterion            = { workspace = true }
+libtest-mimic        = { workspace = true }
 maplit               = { workspace = true }
 pretty_assertions    = { workspace = true }
 tempfile             = { workspace = true }
@@ -55,6 +53,13 @@ tempfile             = { workspace = true }
 
 
 [features]
+
+
+[[test]]
+harness = false
+name = "api"
+path = "tests/api/main.rs"
+
 
 [package.metadata.docs.rs]
 

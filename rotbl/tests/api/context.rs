@@ -1,3 +1,4 @@
+use std::io;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -12,7 +13,6 @@ where S: Storage
 {
     #[allow(dead_code)]
     config: Config,
-    db: Arc<DB>,
 
     temp_dir: TempDir,
     storage: S,
@@ -27,14 +27,16 @@ impl TestContext<FsStorage> {
     }
 
     pub fn with_config(config: Config) -> anyhow::Result<Self> {
-        let db = DB::open(config.clone())?;
+        Self::new_fs(config)
+    }
+
+    pub fn new_fs(config: Config) -> anyhow::Result<Self> {
         let temp_dir = tempfile::tempdir()?;
 
         let storage = FsStorage::new(temp_dir.path().to_path_buf());
 
         Ok(TestContext {
             config,
-            db,
             temp_dir,
             storage,
         })
@@ -44,12 +46,16 @@ impl TestContext<FsStorage> {
 impl<S> TestContext<S>
 where S: Storage
 {
-    pub fn db(&self) -> &Arc<DB> {
-        &self.db
+    pub fn new_db(&self) -> Result<Arc<DB>, io::Error> {
+        DB::open(self.config.clone())
     }
 
     pub fn config(&self) -> Config {
         self.config.clone()
+    }
+
+    pub fn config_mut(&mut self) -> &mut Config {
+        &mut self.config
     }
 
     pub fn base_dir(&self) -> &Path {

@@ -39,19 +39,10 @@ where
     let rotbl_meta = RotblMeta::new(5, "hello");
     let t = Rotbl::create_table(storage, db.config(), path, rotbl_meta, kvs)?;
 
-    let mut index_data = Vec::new();
-    index_data.push(BlockIndexEntry::new(
-        0,
-        Segment::new(36, 73),
-        ss("a"),
-        ss("c"),
-    ));
-    index_data.push(BlockIndexEntry::new(
-        1,
-        Segment::new(109, 63),
-        ss("d"),
-        ss("d"),
-    ));
+    let index_data = vec![
+        BlockIndexEntry::new(0, Segment::new(36, 73), ss("a"), ss("c")),
+        BlockIndexEntry::new(1, Segment::new(109, 63), ss("d"), ss("d")),
+    ];
 
     Ok((t, index_data))
 }
