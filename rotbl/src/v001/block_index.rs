@@ -7,11 +7,13 @@ use std::ops::Bound;
 use std::ops::RangeBounds;
 
 use codeq::config::CodeqConfig;
+use codeq::Span;
 
 use crate::buf::new_uninitialized;
 use crate::typ::Type;
 use crate::v001::header::Header;
 use crate::v001::types::Checksum;
+use crate::v001::types::Segment;
 use crate::v001::types::WithChecksum;
 use crate::version::Version;
 
@@ -23,12 +25,34 @@ use crate::version::Version;
 pub struct BlockIndexEntry {
     pub(crate) block_num: u32,
 
-    /// Offset in the a rotbl, starting from 0.
+    /// Offset in the rotbl, starting from 0.
     pub(crate) offset: u64,
     pub(crate) size: u64,
 
     pub(crate) first_key: String,
     pub(crate) last_key: String,
+}
+
+impl BlockIndexEntry {
+    /// Create a new block index entry.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_num` - The number of the block.
+    /// * `segment` - The offset and size of the block in the rotbl.
+    /// * `first_key` - The first key in the block.
+    /// * `last_key` - The last key in the block.
+    pub fn new(block_num: u32, segment: Segment, first_key: String, last_key: String) -> Self {
+        let offset = *segment.offset();
+        let size = *segment.size();
+        Self {
+            block_num,
+            offset,
+            size,
+            first_key,
+            last_key,
+        }
+    }
 }
 
 impl fmt::Display for BlockIndexEntry {
@@ -69,6 +93,11 @@ impl BlockIndex {
             data_encoded_size: 0,
             data,
         }
+    }
+
+    pub fn with_encoded_size(mut self, size: u64) -> Self {
+        self.data_encoded_size = size;
+        self
     }
 
     pub fn iter_index_entries(&self) -> impl Iterator<Item = &BlockIndexEntry> {

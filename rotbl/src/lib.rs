@@ -46,7 +46,7 @@ pub(crate) mod buf;
 pub(crate) mod io_util;
 pub mod num;
 pub mod storage;
-pub(crate) mod typ;
+pub mod typ;
 pub mod v001;
 pub(crate) mod v00x;
 pub mod version;

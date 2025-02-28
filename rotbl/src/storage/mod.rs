@@ -39,8 +39,8 @@ where Self: Write + Debug + 'static
     /// This method ensures that all data is properly written and finalized.
     /// After calling this method, the writer object should not be used again.
     ///
-    /// This method cannot consume `self` (e.g., `fn commit(self)`), because `self` requires `Sized`.
-    /// As a result, `Box<dyn Writer>::commit()` cannot be used.
+    /// This method cannot consume `self` (e.g., `fn commit(self)`), because `self` requires
+    /// `Sized`. As a result, `Box<dyn Writer>::commit()` cannot be used.
     ///
     /// # Errors
     ///

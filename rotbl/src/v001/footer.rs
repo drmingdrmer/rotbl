@@ -21,7 +21,7 @@ pub struct Footer {
 }
 
 impl Footer {
-    pub(crate) fn new(block_index: Segment, meta: Segment, stat: Segment) -> Self {
+    pub fn new(block_index: Segment, meta: Segment, stat: Segment) -> Self {
         Self {
             block_index_segment: block_index,
             meta_segment: meta,

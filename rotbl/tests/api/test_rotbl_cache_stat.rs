@@ -1,7 +1,8 @@
-use crate::v001::rotbl::tests::rotbl_test;
-use crate::v001::rotbl::tests::rotbl_test::TestContext;
-use crate::v001::CacheStat;
-use crate::v001::Config;
+use rotbl::v001::CacheStat;
+use rotbl::v001::Config;
+
+use crate::context::TestContext;
+use crate::temp_table;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_rotbl_cache_cap_limit() -> anyhow::Result<()> {
@@ -12,7 +13,7 @@ async fn test_rotbl_cache_cap_limit() -> anyhow::Result<()> {
 
     let ctx = TestContext::with_config(config)?;
 
-    let (t, _index_data) = rotbl_test::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
+    let (t, _index_data) = temp_table::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     let stat = t.stat();
     println!("{}", stat);
@@ -45,7 +46,7 @@ async fn test_rotbl_cache_item_limit() -> anyhow::Result<()> {
 
     let ctx = TestContext::with_config(config)?;
 
-    let (t, _index_data) = rotbl_test::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
+    let (t, _index_data) = temp_table::create_tmp_table(ctx.storage(), ctx.db(), "foo.rot")?;
 
     let stat = t.stat();
     println!("{}", stat);

@@ -3,9 +3,6 @@ pub mod builder;
 pub mod dump;
 pub mod stat;
 
-#[cfg(test)]
-mod tests;
-
 use std::io;
 use std::io::Read;
 use std::io::Seek;
@@ -149,6 +146,10 @@ impl Rotbl {
         &self.header
     }
 
+    pub fn table_id(&self) -> u32 {
+        self.table_id
+    }
+
     pub fn file_size(&self) -> u64 {
         self.file_size
     }
@@ -157,8 +158,16 @@ impl Rotbl {
         &self.meta
     }
 
+    pub fn block_index(&self) -> &BlockIndex {
+        &self.block_index
+    }
+
     pub fn stat(&self) -> &stat::RotblStat {
         &self.stat
+    }
+
+    pub fn footer(&self) -> &Footer {
+        &self.footer
     }
 
     pub fn access_stat(&self) -> &AccessStat {

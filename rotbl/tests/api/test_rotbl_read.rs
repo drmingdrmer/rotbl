@@ -1,17 +1,14 @@
-#![allow(clippy::redundant_clone)]
-#![allow(clippy::vec_init_then_push)]
-
 use std::sync::Arc;
 
 use futures::TryStreamExt;
+use rotbl::storage::impls::fs::FsStorage;
+use rotbl::v001::Rotbl;
+use rotbl::v001::SeqMarked;
 
-use crate::storage::impls::fs::FsStorage;
-use crate::v001::rotbl::tests::rotbl_test::create_tmp_table;
-use crate::v001::rotbl::tests::rotbl_test::TestContext;
-use crate::v001::rotbl::Rotbl;
-use crate::v001::testing::bb;
-use crate::v001::testing::ss;
-use crate::v001::SeqMarked;
+use crate::context::TestContext;
+use crate::temp_table::create_tmp_table;
+use crate::utils::bb;
+use crate::utils::ss;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_rotbl_async_get() -> anyhow::Result<()> {
@@ -21,7 +18,7 @@ async fn test_rotbl_async_get() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(storage.clone(), ctx.db(), "foo.rot")?;
 
-    let t = Rotbl::open(storage, ctx.db().config.clone(), "foo.rot")?;
+    let t = Rotbl::open(storage, ctx.db().config(), "foo.rot")?;
 
     // Get from non-existent block
 
@@ -60,7 +57,7 @@ async fn test_rotbl_async_range() -> anyhow::Result<()> {
 
     let (_t, _index_data) = create_tmp_table(storage.clone(), ctx.db(), "foo.rot")?;
 
-    let t = Rotbl::open(storage, ctx.db().config.clone(), "foo.rot")?;
+    let t = Rotbl::open(storage, ctx.db().config(), "foo.rot")?;
     let t = Arc::new(t);
 
     // Full range
