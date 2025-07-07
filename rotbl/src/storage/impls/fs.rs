@@ -87,8 +87,7 @@ impl Write for FsWriter {
 impl storage::Writer for FsWriter {
     fn commit(&mut self) -> Result<(), io::Error> {
         let Some(f) = self.file.take() else {
-            // Already finalized
-            return Ok(());
+            unreachable!("FsWriter::commit() should not be called multiple times");
         };
 
         // Flush and get inner writer
