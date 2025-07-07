@@ -39,26 +39,37 @@ where S: Storage
 
     this_chunk: Vec<(String, SeqMarked)>,
 
+    /// The previously added key.
+    ///
+    /// This is used to ensure that keys are added in strictly increasing order.
     prev: Option<String>,
 
+    /// The storage where the rotbl files are stored.
+    ///
+    /// Usually it could be a dir on a file system.
     storage: S,
 
-    path: String,
+    /// The relative path of the rotbl file in `storage`
+    rel_path: String,
 
+    /// The writer that is opened on the `storage`.
+    ///
+    /// In this version this builder writes only one file.
     writer: BoxWriter,
 
+    /// The block indexes accumulated during appending keys.
     index: Vec<BlockIndexEntry>,
 }
 
 impl<S> Builder<S>
 where S: Storage
 {
-    pub fn new(mut storage: S, config: Config, path: &str) -> Result<Self, io::Error> {
+    pub fn new(mut storage: S, config: Config, rel_path: &str) -> Result<Self, io::Error> {
         // Table id is not supported yet in this version,
         // and is always 0.
         let table_id = 0;
 
-        let f = storage.writer(path)?;
+        let f = storage.writer(rel_path)?;
 
         let chunk_size = config.block_config.max_items();
         if chunk_size == 0 {
@@ -78,7 +89,7 @@ where S: Storage
             this_chunk: Vec::with_capacity(chunk_size),
             prev: None,
             storage,
-            path: path.to_string(),
+            rel_path: rel_path.to_string(),
             writer: f,
             index: Vec::new(),
         };
@@ -181,7 +192,7 @@ where S: Storage
 
         self.writer.commit()?;
 
-        let reader = self.storage.reader(&self.path)?;
+        let reader = self.storage.reader(&self.rel_path)?;
 
         let block_cache = DB::new_cache(self.config.clone());
 
