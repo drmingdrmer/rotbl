@@ -102,6 +102,10 @@ where S: Storage
         Ok(builder)
     }
 
+    pub fn rel_path(&self) -> &str {
+        &self.rel_path
+    }
+
     pub fn append_kv(&mut self, k: impl ToString, v: SeqMarked) -> Result<(), io::Error> {
         let k = k.to_string();
 

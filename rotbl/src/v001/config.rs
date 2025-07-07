@@ -116,8 +116,4 @@ impl Config {
     pub fn block_cache_mut(&mut self) -> &mut BlockCacheConfig {
         &mut self.block_cache
     }
-
-    pub fn fill_default_values(&mut self) {
-        self.debug_check = Some(true);
-    }
 }
