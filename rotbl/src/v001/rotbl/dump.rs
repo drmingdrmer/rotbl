@@ -70,7 +70,7 @@ impl Dump {
                     .collect::<Vec<_>>();
 
                 for (k, v) in kvs {
-                    yield format!("Block-{:>04}: {}: {}", block_num, k, v.display());
+                    yield format!("Block-{:>04}: {}: {}", block_num, k, v.display_with_debug());
                 }
             }
             Ok(())

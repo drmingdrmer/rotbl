@@ -17,6 +17,7 @@ use std::sync::Mutex;
 use codeq::Decode;
 use codeq::FixedSize;
 use futures::stream::BoxStream;
+use log::debug;
 
 use crate::buf::new_uninitialized;
 use crate::io_util;
@@ -192,6 +193,7 @@ impl Rotbl {
     ///
     /// If hold a lock to the cache while loading the block.
     pub fn load_block(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+        debug!("load_block start: {}", block_num);
         let block_id = BlockId::new(self.table_id, block_num);
 
         // Hold the lock until the block is loaded.
@@ -205,12 +207,16 @@ impl Rotbl {
 
         cache.insert(block_id, block.clone());
 
+        debug!("load_block   end: {}", block_num);
+
         Ok(block)
     }
 
     pub async fn load_block_async(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+        debug!("load_block_async start: {}", block_num);
         let join_handle = tokio::task::block_in_place(move || self.load_block(block_num));
         let block = join_handle?;
+        debug!("load_block_async   end: {}", block_num);
         Ok(block)
     }
 

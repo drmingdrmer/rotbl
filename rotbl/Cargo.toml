@@ -41,6 +41,7 @@ serde_json           = { workspace = true }
 num-format            = { workspace = true }
 
 clap                  = { workspace = true }
+log                   = { workspace = true }
 
 # testing
 

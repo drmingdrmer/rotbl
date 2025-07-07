@@ -115,8 +115,8 @@ impl<D> SeqMarked<D> {
         }
     }
 
-    /// Return a struct that implements `fmt::Display` for SeqMarked.
-    pub fn display(&self) -> impl fmt::Display + '_
+    /// Return a struct that implements `fmt::Display` for SeqMarked, but only require `D: Debug`
+    pub fn display_with_debug(&self) -> impl fmt::Display + '_
     where D: fmt::Debug {
         struct DisplaySeqMarked<'a, D>(&'a SeqMarked<D>);
 
