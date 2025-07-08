@@ -95,8 +95,12 @@ impl Rotbl {
         Ok(t)
     }
 
-    pub fn open<S: Storage>(mut storage: S, config: Config, path: &str) -> Result<Self, io::Error> {
-        let mut f = storage.reader(path)?;
+    pub fn open<S: Storage>(
+        mut storage: S,
+        config: Config,
+        rel_path: &str,
+    ) -> Result<Self, io::Error> {
+        let mut f = storage.reader(rel_path)?;
 
         let header = {
             let header = Header::decode(&mut f)?;

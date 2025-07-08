@@ -9,6 +9,8 @@ use std::path::PathBuf;
 use crate::io_util::DEFAULT_READ_BUF_SIZE;
 use crate::io_util::DEFAULT_WRITE_BUF_SIZE;
 use crate::storage;
+use crate::storage::BoxReader;
+use crate::storage::BoxWriter;
 use crate::storage::Storage;
 
 /// The storage implementation that uses the file system.
@@ -24,7 +26,7 @@ impl FsStorage {
 }
 
 impl Storage for FsStorage {
-    fn reader(&mut self, key: &str) -> Result<Box<dyn storage::Reader>, io::Error> {
+    fn reader(&mut self, key: &str) -> Result<BoxReader, io::Error> {
         let path = self.base_dir.join(key);
 
         let f = fs::OpenOptions::new().create(false).create_new(false).read(true).open(&path)?;
@@ -34,13 +36,12 @@ impl Storage for FsStorage {
         Ok(f)
     }
 
-    fn writer(&mut self, key: &str) -> Result<Box<dyn storage::Writer>, io::Error> {
+    fn writer(&mut self, key: &str) -> Result<BoxWriter, io::Error> {
         let target_path = self.base_dir.join(key);
         // TODO: unique temp path
         let temp_path = self.base_dir.join(format!("{}.tmp", key));
         let w = FsWriter::new(temp_path, target_path)?;
-        let w = Box::new(w) as Box<dyn storage::Writer>;
-        Ok(w)
+        Ok(Box::new(w))
     }
 }
 

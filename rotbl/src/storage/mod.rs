@@ -8,8 +8,8 @@ use std::io::BufRead;
 use std::io::Seek;
 use std::io::Write;
 
-pub type BoxReader = Box<dyn Reader>;
-pub type BoxWriter = Box<dyn Writer>;
+pub type BoxReader = Box<dyn Reader + Send>;
+pub type BoxWriter = Box<dyn Writer + Send>;
 
 /// The type of the reader.
 ///
@@ -50,7 +50,7 @@ where Self: Write + Debug + 'static
 
 /// This trait defines the behavior required to read and write data to persistent storage.
 pub trait Storage
-where Self: Debug + Clone + 'static
+where Self: Debug + Clone + Send + 'static
 {
     /// Get a reader to read the data of the given key.
     fn reader(&mut self, key: &str) -> Result<BoxReader, io::Error>;
