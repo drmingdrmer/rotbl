@@ -2,6 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use log::info;
 use rotbl::storage::impls::fs::FsStorage;
 use rotbl::v001::Builder;
 use rotbl::v001::Config;
@@ -55,7 +56,29 @@ fn generate_data() -> anyhow::Result<()> {
 
 #[test]
 fn test_compat() -> anyhow::Result<()> {
-    let version_dir = get_version_dir(CURRENT_VERSION);
+    do_test_compat(CURRENT_VERSION)
+}
+
+#[test]
+fn test_backward_compat() -> anyhow::Result<()> {
+    // list all versions in the compat dir
+    let versions = fs::read_dir(COMPAT_DIR)?
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.is_dir())
+        .map(|path| path.file_name().unwrap().to_str().unwrap().to_string())
+        .collect::<Vec<_>>();
+
+    for version in versions {
+        do_test_compat(&version)?;
+    }
+
+    Ok(())
+}
+
+fn do_test_compat(version: &str) -> anyhow::Result<()> {
+    info!("testing compat with version {}", version);
+
+    let version_dir = get_version_dir(version);
     let db_dir = format!("{}/db", version_dir);
     let file_name = "x.rot";
     let dump_path = format!("{}/dump.txt", version_dir);
