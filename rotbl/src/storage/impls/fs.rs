@@ -5,6 +5,8 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
+use std::time::SystemTime;
+use std::time::UNIX_EPOCH;
 
 use crate::io_util::DEFAULT_READ_BUF_SIZE;
 use crate::io_util::DEFAULT_WRITE_BUF_SIZE;
@@ -23,6 +25,14 @@ impl FsStorage {
     pub fn new(base_dir: PathBuf) -> Self {
         Self { base_dir }
     }
+
+    pub fn temp_fn_num() -> u64 {
+        // Sleep to avoid timestamp collision when this function is called twice in a short time.
+        std::thread::sleep(std::time::Duration::from_micros(2));
+
+        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros();
+        ts as u64
+    }
 }
 
 impl Storage for FsStorage {
@@ -38,8 +48,10 @@ impl Storage for FsStorage {
 
     fn writer(&mut self, key: &str) -> Result<BoxWriter, io::Error> {
         let target_path = self.base_dir.join(key);
-        // TODO: unique temp path
-        let temp_path = self.base_dir.join(format!("{}.tmp", key));
+        let micros = Self::temp_fn_num();
+
+        let temp_path = self.base_dir.join(format!("{key}.tmp-{micros}"));
+
         let w = FsWriter::new(temp_path, target_path)?;
         Ok(Box::new(w))
     }
@@ -150,5 +162,24 @@ mod tests {
         reader.read_to_string(&mut content)?;
         assert_eq!(content, "Hello, world!");
         Ok(())
+    }
+
+    #[test]
+    fn test_temp_fn() {
+        let got = FsStorage::temp_fn_num();
+
+        // typical timestamp in macro-seconds is `1_752_062_180_209_798`
+        assert!(got > 1_000_000_000_000_000);
+        assert!(got < 2_000_000_000_000_000);
+    }
+
+    #[test]
+    fn test_temp_fn_non_dup() {
+        let mut prev = None;
+        for _i in 0..1000 {
+            let got = Some(FsStorage::temp_fn_num());
+            assert!(prev < got);
+            prev = got;
+        }
     }
 }
