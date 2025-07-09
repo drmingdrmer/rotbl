@@ -9,7 +9,6 @@ mod config;
 mod db;
 mod footer;
 mod header;
-mod marked;
 mod range;
 mod rotbl;
 mod rotbl_meta;
@@ -30,13 +29,13 @@ pub use config::Config;
 pub use db::DB;
 pub use footer::Footer;
 pub use header::Header;
-pub use marked::Marked;
-pub use marked::SeqMarked;
 pub use rotbl::builder::Builder;
 pub use rotbl::dump::Dump;
 pub use rotbl::stat;
 pub use rotbl::Rotbl;
 pub use rotbl_meta::RotblMeta;
+pub use seqmarked::Marked;
+pub use seqmarked::SeqMarked;
 pub use types::Segment;
 
 // TODO: introduce an Error for rotbl

@@ -26,6 +26,7 @@ tokio                = { version = "1.33.0", features = ["rt-multi-thread", "mac
 # data structure
 lru-cache-map     = { version = "0.2.0" }
 maplit            = { version = "1.0.2" }
+seqmarked         = { version = "0.1.0", features = ["serde", "bincode"] }
 
 # error handling
 anyhow            = { version = "1.0.63" }
