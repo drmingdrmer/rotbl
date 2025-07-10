@@ -4,6 +4,7 @@ use std::fs;
 use std::fs::File;
 use std::io;
 use std::io::Write;
+use std::path::Path;
 use std::path::PathBuf;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
@@ -26,7 +27,16 @@ impl FsStorage {
         Self { base_dir }
     }
 
-    pub fn temp_fn_num() -> u64 {
+    /// Return the containing directory of the storage.
+    pub fn base_dir(&self) -> &Path {
+        self.base_dir.as_path()
+    }
+
+    pub fn base_dir_str(&self) -> &str {
+        self.base_dir.to_str().expect("base_dir should be valid UTF-8")
+    }
+
+    fn temp_fn_num() -> u64 {
         // Sleep to avoid timestamp collision when this function is called twice in a short time.
         std::thread::sleep(std::time::Duration::from_micros(2));
 
@@ -161,6 +171,16 @@ mod tests {
         let mut content = String::new();
         reader.read_to_string(&mut content)?;
         assert_eq!(content, "Hello, world!");
+        Ok(())
+    }
+
+    #[test]
+    fn test_fs_storage_base_dir() -> Result<(), io::Error> {
+        let temp_dir = tempfile::tempdir()?;
+
+        let storage = FsStorage::new(temp_dir.path().to_path_buf());
+        assert_eq!(storage.base_dir_str(), temp_dir.path().to_str().unwrap());
+
         Ok(())
     }
 

@@ -110,6 +110,10 @@ where S: Storage
         &self.config
     }
 
+    pub fn storage(&self) -> &S {
+        &self.storage
+    }
+
     pub fn append_kv(&mut self, k: impl ToString, v: SeqMarked) -> Result<(), io::Error> {
         let k = k.to_string();
 
