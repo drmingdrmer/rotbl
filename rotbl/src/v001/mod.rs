@@ -34,8 +34,8 @@ pub use rotbl::dump::Dump;
 pub use rotbl::stat;
 pub use rotbl::Rotbl;
 pub use rotbl_meta::RotblMeta;
-pub use seqmarked::Marked;
-pub use seqmarked::SeqMarked;
+pub use seq_marked::Marked;
+pub use seq_marked::SeqMarked;
 pub use types::Segment;
 
 // TODO: introduce an Error for rotbl

@@ -31,10 +31,10 @@ fn test_dump<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
         r#"BlockIndex: n: 2"#,
         r#"    index: { block_num: 0000, position: 36+73, key_range: ["a", "c"] }"#,
         r#"    index: { block_num: 0001, position: 109+63, key_range: ["d", "d"] }"#,
-        r#"Block-0000: a: seq: 1, tombstone"#,
-        r#"Block-0000: b: seq: 2, data: [66]"#,
-        r#"Block-0000: c: seq: 2, data: [67]"#,
-        r#"Block-0001: d: seq: 2, data: [68]"#,
+        r#"Block-0000: a: {seq: 1, TOMBSTONE}"#,
+        r#"Block-0000: b: {seq: 2, ([66])}"#,
+        r#"Block-0000: c: {seq: 2, ([67])}"#,
+        r#"Block-0001: d: {seq: 2, ([68])}"#,
     ];
 
     assert_eq!(want, got);
