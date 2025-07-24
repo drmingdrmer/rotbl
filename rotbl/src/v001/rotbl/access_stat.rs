@@ -1,3 +1,5 @@
+//! Access statistics for the database.
+
 use std::fmt;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;

@@ -1,3 +1,8 @@
+//! Statistics for Rotbl instances.
+//!
+//! This module provides the [`RotblStat`] struct for tracking and serializing
+//! key metrics like block count, key count, data size, and index size.
+
 use std::fmt;
 use std::io::Error;
 use std::io::Read;

@@ -29,6 +29,7 @@ pub use config::Config;
 pub use db::DB;
 pub use footer::Footer;
 pub use header::Header;
+pub use rotbl::access_stat;
 pub use rotbl::builder::Builder;
 pub use rotbl::dump::Dump;
 pub use rotbl::stat;
