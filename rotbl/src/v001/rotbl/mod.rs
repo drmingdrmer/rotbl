@@ -8,6 +8,8 @@ use std::io::Read;
 use std::io::Seek;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::sync::MutexGuard;
+use std::time::Instant;
 
 use codeq::Decode;
 use codeq::FixedSize;
@@ -202,30 +204,54 @@ impl Rotbl {
     /// Load a block from disk and fill it into the cache.
     ///
     /// If the block is already in the cache, it will be returned immediately.
-    ///
-    /// If hold a lock to the cache while loading the block.
     pub fn load_block(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
-        debug!("load_block start: {}", block_num);
-        let block_id = BlockId::new(self.table_id, block_num);
-
-        // Hold the lock until the block is loaded.
-        let mut cache = self.block_cache.lock().unwrap();
-        if let Some(b) = cache.get(&block_id).cloned() {
-            self.access_stat.hit_block(true);
+        // Check cache first
+        if let Some(b) = self.get_block(block_num) {
             return Ok(b);
         }
 
-        let block = self.load_block_nocache(block_num)?;
+        let start = Instant::now();
+        debug!("load_block start: {}", block_num);
 
-        cache.insert(block_id, block.clone());
+        let block = {
+            let mut f = self.file.lock().unwrap();
 
-        debug!("load_block   end: {}", block_num);
+            // Re-check: the cache may already be filled by another thread
+            if let Some(b) = self.get_block(block_num) {
+                debug!("load_block cache: {}", block_num);
+                return Ok(b);
+            }
+
+            // Load block from disk
+            let block = self.load_block_nocache(&mut f, block_num)?;
+
+            // Insert into cache
+            let block_id = BlockId::new(self.table_id, block_num);
+            {
+                let mut cache = self.block_cache.lock().unwrap();
+                cache.insert(block_id, block.clone());
+            }
+
+            block
+        };
+
+        debug!(
+            "load_block   end: {}; elapsed: {:?}",
+            block_num,
+            start.elapsed()
+        );
 
         Ok(block)
     }
 
     pub async fn load_block_async(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
         debug!("load_block_async start: {}", block_num);
+
+        if let Some(b) = self.get_block(block_num) {
+            debug!("load_block_async cache: {}", block_num);
+            return Ok(b);
+        }
+
         let join_handle = tokio::task::block_in_place(move || self.load_block(block_num));
         let block = join_handle?;
         debug!("load_block_async   end: {}", block_num);
@@ -233,13 +259,18 @@ impl Rotbl {
     }
 
     /// Load block from disk without accessing cache.
-    pub(crate) fn load_block_nocache(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+    ///
+    /// It requires a locked `BoxReader` for exclusive read.
+    pub(crate) fn load_block_nocache(
+        &self,
+        f: &mut MutexGuard<BoxReader>,
+        block_num: u32,
+    ) -> Result<Arc<Block>, io::Error> {
         let block_meta = self.block_index.get_index_entry_by_num(block_num).unwrap();
 
         let mut buf = new_uninitialized(block_meta.size as usize);
 
         {
-            let mut f = self.file.lock().unwrap();
             f.seek(io::SeekFrom::Start(block_meta.offset))?;
             f.read_exact(&mut buf)?;
         }
