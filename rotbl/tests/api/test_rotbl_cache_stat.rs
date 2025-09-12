@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use libtest_mimic::Trial;
 use rotbl::storage::Storage;
 use rotbl::v001::CacheStat;
@@ -23,6 +25,8 @@ async fn test_rotbl_cache_cap_limit<S: Storage>(mut ctx: TestContext<S>) -> anyh
 
     let (t, _index_data) =
         temp_table::create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
+
+    let t = Arc::new(t);
 
     let stat = t.stat();
     let _ = stat;
@@ -56,6 +60,7 @@ async fn test_rotbl_cache_item_limit<S: Storage>(mut ctx: TestContext<S>) -> any
 
     let (t, _index_data) =
         temp_table::create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
+    let t = Arc::new(t);
 
     let stat = t.stat();
     let _ = stat;

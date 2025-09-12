@@ -244,7 +244,10 @@ impl Rotbl {
         Ok(block)
     }
 
-    pub async fn load_block_async(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+    pub async fn load_block_async(
+        self: &Arc<Self>,
+        block_num: u32,
+    ) -> Result<Arc<Block>, io::Error> {
         debug!("load_block_async start: {}", block_num);
 
         if let Some(b) = self.get_block(block_num) {
@@ -252,8 +255,14 @@ impl Rotbl {
             return Ok(b);
         }
 
-        let join_handle = tokio::task::block_in_place(move || self.load_block(block_num));
-        let block = join_handle?;
+        let s = self.clone();
+        let join_handle = tokio::task::spawn_blocking(move || s.load_block(block_num));
+
+        let load_block_res =
+            join_handle.await.map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+
+        let block = load_block_res?;
+
         debug!("load_block_async   end: {}", block_num);
         Ok(block)
     }
@@ -289,7 +298,7 @@ impl Rotbl {
     }
 
     /// Return the value of the specified key.
-    pub async fn get(&self, key: &str) -> Result<Option<SeqMarked>, io::Error> {
+    pub async fn get(self: &Arc<Self>, key: &str) -> Result<Option<SeqMarked>, io::Error> {
         let block_num = self.block_index.lookup(key).map(|x| x.block_num);
 
         let Some(block_num) = block_num else {

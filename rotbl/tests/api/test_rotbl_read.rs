@@ -25,6 +25,7 @@ async fn test_rotbl_async_get<S: Storage>(ctx: TestContext<S>) -> anyhow::Result
     let (_t, _index_data) = create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
 
     let t = Rotbl::open(ctx.storage(), ctx.config(), "foo.rot")?;
+    let t = Arc::new(t);
 
     // Get from non-existent block
 
