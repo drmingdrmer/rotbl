@@ -18,9 +18,8 @@ pub struct Args {
 fn main() -> Result<(), io::Error> {
     let args = Args::parse();
 
-    let config = Config::default().with_block_cache_config(
-        BlockCacheConfig::default().with_capacity(256 * 1024 * 1024),
-    );
+    let config = Config::default()
+        .with_block_cache_config(BlockCacheConfig::default().with_capacity(256 * 1024 * 1024));
 
     let path = args.path.clone();
     // split path into dir and file

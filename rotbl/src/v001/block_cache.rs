@@ -14,10 +14,10 @@ use crate::v001::config::BlockCacheConfig;
 ///
 /// Concurrency properties:
 /// - `get` is lock-free and scales with the number of cores.
-/// - `try_get_with` coalesces concurrent misses for the same key: only the
-///   first caller runs the initializer (disk load), the rest block-wait and
-///   then receive a clone of the loaded `Arc<Block>`. This eliminates the
-///   "thundering herd" where N tasks simultaneously read the same block.
+/// - `try_get_with` coalesces concurrent misses for the same key: only the first caller runs the
+///   initializer (disk load), the rest block-wait and then receive a clone of the loaded
+///   `Arc<Block>`. This eliminates the "thundering herd" where N tasks simultaneously read the same
+///   block.
 pub type BlockCache = Cache<BlockId, Arc<Block>>;
 
 /// Build a new [`BlockCache`] from a [`BlockCacheConfig`].

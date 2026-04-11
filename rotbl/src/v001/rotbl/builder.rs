@@ -1,7 +1,5 @@
 use std::collections::BTreeMap;
 use std::io;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use codeq::config::CodeqConfig;
 use codeq::Encode;
@@ -204,13 +202,13 @@ where S: Storage
 
         self.writer.commit()?;
 
-        let reader = self.storage.reader(&self.rel_path)?;
+        let file = self.storage.reader_at(&self.rel_path)?;
 
         let block_cache = DB::new_cache(self.config.clone());
 
         let r = Rotbl {
             block_cache,
-            file: Arc::new(Mutex::new(reader)),
+            file,
             file_size: self.offset as u64,
             header: self.header,
             table_id: self.table_id,

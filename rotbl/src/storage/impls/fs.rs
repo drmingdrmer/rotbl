@@ -9,11 +9,11 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 use std::time::UNIX_EPOCH;
 
-use crate::io_util::DEFAULT_READ_BUF_SIZE;
 use crate::io_util::DEFAULT_WRITE_BUF_SIZE;
 use crate::storage;
-use crate::storage::BoxReader;
+use crate::storage::BoxReaderAt;
 use crate::storage::BoxWriter;
+use crate::storage::ReaderAt;
 use crate::storage::Storage;
 
 /// The storage implementation that uses the file system.
@@ -46,14 +46,10 @@ impl FsStorage {
 }
 
 impl Storage for FsStorage {
-    fn reader(&mut self, key: &str) -> Result<BoxReader, io::Error> {
+    fn reader_at(&mut self, key: &str) -> Result<BoxReaderAt, io::Error> {
         let path = self.base_dir.join(key);
-
-        let f = fs::OpenOptions::new().create(false).create_new(false).read(true).open(&path)?;
-        let f = io::BufReader::with_capacity(DEFAULT_READ_BUF_SIZE, f);
-
-        let f = Box::new(f) as Box<dyn storage::Reader>;
-        Ok(f)
+        let file = fs::OpenOptions::new().create(false).create_new(false).read(true).open(&path)?;
+        Ok(Box::new(FsReaderAt { file }))
     }
 
     fn writer(&mut self, key: &str) -> Result<BoxWriter, io::Error> {
@@ -64,6 +60,58 @@ impl Storage for FsStorage {
 
         let w = FsWriter::new(temp_path, target_path)?;
         Ok(Box::new(w))
+    }
+}
+
+/// Positional reader backed by a single shared `File` handle.
+///
+/// `File` itself is `Send + Sync`; positional reads via `pread(2)` (unix) do
+/// not touch the kernel file cursor, so the same handle can service many
+/// concurrent block loads without any userspace lock. On windows the same
+/// guarantee is provided via `ReadFile` with an explicit `OVERLAPPED` offset,
+/// exposed as `FileExt::seek_read`.
+#[derive(Debug)]
+struct FsReaderAt {
+    file: File,
+}
+
+impl ReaderAt for FsReaderAt {
+    fn read_exact_at(&self, buf: &mut [u8], offset: u64) -> io::Result<()> {
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::FileExt;
+            self.file.read_exact_at(buf, offset)
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::FileExt;
+            // `seek_read` on windows does a positioned `ReadFile` and does
+            // not mutate the shared file cursor, so it is safe to call
+            // concurrently from multiple threads on the same handle. It
+            // can, however, return a short read, so we loop until the whole
+            // buffer is filled.
+            let total = buf.len();
+            let mut read = 0;
+            while read < total {
+                let n = self.file.seek_read(&mut buf[read..], offset + read as u64)?;
+                if n == 0 {
+                    return Err(io::Error::new(
+                        io::ErrorKind::UnexpectedEof,
+                        "failed to fill whole buffer",
+                    ));
+                }
+                read += n;
+            }
+            Ok(())
+        }
+        #[cfg(not(any(unix, windows)))]
+        {
+            compile_error!("FsReaderAt requires a unix or windows target")
+        }
+    }
+
+    fn len(&self) -> io::Result<u64> {
+        Ok(self.file.metadata()?.len())
     }
 }
 
@@ -126,8 +174,6 @@ impl storage::Writer for FsWriter {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
-
     use super::*;
     use crate::storage::Writer;
 
@@ -167,10 +213,12 @@ mod tests {
         writer.write_all(b"Hello, world!")?;
         writer.commit()?;
 
-        let mut reader = storage.reader("test.txt")?;
-        let mut content = String::new();
-        reader.read_to_string(&mut content)?;
-        assert_eq!(content, "Hello, world!");
+        let reader = storage.reader_at("test.txt")?;
+        assert_eq!(reader.len()?, 13);
+
+        let mut buf = vec![0u8; 13];
+        reader.read_exact_at(&mut buf, 0)?;
+        assert_eq!(&buf[..], b"Hello, world!");
         Ok(())
     }
 

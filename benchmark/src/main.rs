@@ -26,9 +26,7 @@ async fn main() {
     let config = Config::default()
         .with_root_path("./_rotbl")
         .with_block_config(BlockConfig::default().with_max_items(n_keys_per_block))
-        .with_block_cache_config(
-            BlockCacheConfig::default().with_capacity(256 * 1024 * 1024),
-        );
+        .with_block_cache_config(BlockCacheConfig::default().with_capacity(256 * 1024 * 1024));
 
     let db = DB::open(config).unwrap();
     let r = build(&db, build_keys).await;

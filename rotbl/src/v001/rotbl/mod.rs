@@ -4,11 +4,7 @@ pub mod dump;
 pub mod stat;
 
 use std::io;
-use std::io::Read;
-use std::io::Seek;
 use std::sync::Arc;
-use std::sync::Mutex;
-use std::sync::MutexGuard;
 use std::time::Instant;
 
 use codeq::Decode;
@@ -18,7 +14,7 @@ use log::debug;
 
 use crate::buf::new_uninitialized;
 use crate::io_util;
-use crate::storage::BoxReader;
+use crate::storage::BoxReaderAt;
 use crate::storage::Storage;
 use crate::typ::Type;
 use crate::v001::block::Block;
@@ -61,7 +57,13 @@ pub struct Rotbl {
     /// a thundering herd of readers only triggers one disk read per block.
     block_cache: BlockCache,
 
-    file: Arc<Mutex<BoxReader>>,
+    /// Positional reader for on-miss block loads.
+    ///
+    /// Uses `pread(2)`-style I/O under the hood (see
+    /// [`crate::storage::ReaderAt`]), so concurrent misses on different
+    /// blocks can issue parallel reads against the OS page cache / disk
+    /// without any userspace lock.
+    file: BoxReaderAt,
 
     /// On disk file size in bytes
     file_size: u64,
@@ -106,31 +108,40 @@ impl Rotbl {
         config: Config,
         rel_path: &str,
     ) -> Result<Self, io::Error> {
-        let mut f = storage.reader(rel_path)?;
+        // Single positional reader handles both the one-shot metadata parse
+        // and the concurrent block-load hot path.
+        let file: BoxReaderAt = storage.reader_at(rel_path)?;
+        let file_size = file.len()?;
 
-        let header = {
-            let header = Header::decode(&mut f)?;
-            assert_eq!(header, Header::new(Type::Rotbl, Version::V001));
-            header
-        };
+        // Header + table_id live at offset 0, each with a statically known
+        // fixed size. Read the whole prefix in one syscall and decode from
+        // an in-memory slice (which implements `Read`).
+        let prefix_size = Header::encoded_size() + <WithChecksum<u32>>::encoded_size();
+        let mut prefix = new_uninitialized(prefix_size);
+        file.read_exact_at(&mut prefix, 0)?;
+        let mut prefix_slice = prefix.as_slice();
+        let header = Header::decode(&mut prefix_slice)?;
+        assert_eq!(header, Header::new(Type::Rotbl, Version::V001));
+        let table_id = WithChecksum::<u32>::decode(&mut prefix_slice)?.into_inner();
 
-        let table_id = WithChecksum::<u32>::decode(&mut f)?.into_inner();
-
-        let footer_offset = f.seek(io::SeekFrom::End(-(Footer::encoded_size() as i64)))?;
-        let footer = Footer::decode(&mut f)?;
+        // Footer sits at the tail of the file at a fixed offset.
+        let footer_offset = file_size - Footer::encoded_size() as u64;
+        let mut footer_buf = new_uninitialized(Footer::encoded_size());
+        file.read_exact_at(&mut footer_buf, footer_offset)?;
+        let footer = Footer::decode(&mut footer_buf.as_slice())?;
 
         let block_index = {
-            let buf = io_util::read_segment(&mut f, footer.block_index_segment)?;
+            let buf = io_util::read_segment(&*file, footer.block_index_segment)?;
             BlockIndex::decode(&mut buf.as_slice())?
         };
 
         let meta = {
-            let buf = io_util::read_segment(&mut f, footer.meta_segment)?;
+            let buf = io_util::read_segment(&*file, footer.meta_segment)?;
             RotblMeta::decode(&mut buf.as_slice())?
         };
 
         let stat = {
-            let buf = io_util::read_segment(&mut f, footer.stat_segment)?;
+            let buf = io_util::read_segment(&*file, footer.stat_segment)?;
             stat::RotblStat::decode(&mut buf.as_slice())?
         };
 
@@ -140,8 +151,8 @@ impl Rotbl {
             block_cache: cache,
             table_id,
             header,
-            file: Arc::new(Mutex::new(f)),
-            file_size: footer_offset + Footer::encoded_size() as u64,
+            file,
+            file_size,
             meta,
             block_index,
             stat,
@@ -226,28 +237,8 @@ impl Rotbl {
         // at most one caller per `block_id` actually runs the disk loader.
         let block_id = BlockId::new(self.table_id, block_num);
         self.block_cache
-            .try_get_with(block_id, || self.load_block_from_disk(block_num))
+            .try_get_with(block_id, || self.load_block_nocache(block_num))
             .map_err(|e: Arc<io::Error>| io::Error::new(e.kind(), e.to_string()))
-    }
-
-    /// Load a block from disk under the file mutex.
-    ///
-    /// This is the initializer executed by `try_get_with` on a cache miss.
-    /// It also bumps the miss counter on `access_stat`.
-    fn load_block_from_disk(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
-        let start = Instant::now();
-        debug!("load_block start: {}", block_num);
-
-        let mut f = self.file.lock().unwrap();
-        let block = self.load_block_nocache(&mut f, block_num)?;
-
-        debug!(
-            "load_block   end: {}; elapsed: {:?}",
-            block_num,
-            start.elapsed()
-        );
-
-        Ok(block)
     }
 
     pub async fn load_block_async(
@@ -273,27 +264,32 @@ impl Rotbl {
         Ok(block)
     }
 
-    /// Load block from disk without accessing cache.
+    /// Load a block directly from disk, bypassing the cache.
     ///
-    /// It requires a locked `BoxReader` for exclusive read.
-    pub(crate) fn load_block_nocache(
-        &self,
-        f: &mut MutexGuard<BoxReader>,
-        block_num: u32,
-    ) -> Result<Arc<Block>, io::Error> {
+    /// Invoked as the `try_get_with` initializer on a cache miss. The read
+    /// is issued via [`crate::storage::ReaderAt::read_exact_at`], so
+    /// concurrent initializers for different blocks do not serialize on any
+    /// userspace lock — the kernel's `pread` handles parallel positioned
+    /// reads directly against the page cache / disk.
+    pub(crate) fn load_block_nocache(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+        let start = Instant::now();
+        debug!("load_block start: {}", block_num);
+
         let block_meta = self.block_index.get_index_entry_by_num(block_num).unwrap();
 
         let mut buf = new_uninitialized(block_meta.size as usize);
-
-        {
-            f.seek(io::SeekFrom::Start(block_meta.offset))?;
-            f.read_exact(&mut buf)?;
-        }
+        self.file.read_exact_at(&mut buf, block_meta.offset)?;
 
         let block = Block::decode(&mut buf.as_slice())?;
         let block = Arc::new(block);
 
         self.access_stat.hit_block(false);
+
+        debug!(
+            "load_block   end: {}; elapsed: {:?}",
+            block_num,
+            start.elapsed()
+        );
 
         Ok(block)
     }

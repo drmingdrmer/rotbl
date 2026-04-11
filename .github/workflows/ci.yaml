@@ -9,12 +9,13 @@ jobs:
 
   test-release-build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        include:
-          - toolchain: "nightly"
+        os: [ubuntu-latest, windows-latest]
+        toolchain: ["nightly"]
 
     steps:
       - name: Setup | Checkout
@@ -36,18 +37,15 @@ jobs:
 
 
   unittest:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
 
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # futures_async_stream requires nightly.
-          # - toolchain: "stable"
-          #   features: ""
-
-          - toolchain: "nightly"
-            features: ""
+        os: [ubuntu-latest, windows-latest]
+        # futures_async_stream requires nightly.
+        toolchain: ["nightly"]
+        features: [""]
 
     steps:
       - name: Setup | Checkout

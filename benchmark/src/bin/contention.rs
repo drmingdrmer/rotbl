@@ -58,9 +58,7 @@ const CACHE_CAPACITY: usize = 4 * 1024 * 1024;
 async fn main() {
     let keys = Arc::new(build_table());
 
-    let file_size = std::fs::metadata(format!("{}/{}", ROOT, TABLE))
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let file_size = std::fs::metadata(format!("{}/{}", ROOT, TABLE)).map(|m| m.len()).unwrap_or(0);
 
     println!("=== rotbl contention benchmark ===");
     println!(
@@ -90,7 +88,7 @@ async fn main() {
 
 /// Phase 1: N tasks all request the same key from a cold-cache Rotbl.
 ///
-/// Under Mutex<LruCache>, all N spawn_blocking loads serialize on `file.lock()`,
+/// Under `Mutex<LruCache>`, all N spawn_blocking loads serialize on `file.lock()`,
 /// producing a fan-out in per-task latencies (1×, 2×, 3×, ... of one disk read).
 /// Under a singleflight cache, all N coalesce into one load → latencies cluster.
 async fn phase_cold_herd(keys: &Arc<Vec<String>>, concurrency: usize) {
@@ -142,11 +140,7 @@ async fn phase_cold_herd(keys: &Arc<Vec<String>>, concurrency: usize) {
 ///
 /// Forces sustained miss pressure so every op walks `spawn_blocking → file.lock()
 /// → cache.lock()`. Reveals how the serialization tax scales with concurrency.
-async fn phase_concurrent_random(
-    keys: &Arc<Vec<String>>,
-    concurrency: usize,
-    ops_per_task: usize,
-) {
+async fn phase_concurrent_random(keys: &Arc<Vec<String>>, concurrency: usize, ops_per_task: usize) {
     let r = Arc::new(open_fresh());
 
     let barrier = Arc::new(Barrier::new(concurrency));
@@ -275,9 +269,7 @@ fn build_table() -> Vec<String> {
     let config = Config::default()
         .with_root_path(ROOT)
         .with_block_config(BlockConfig::default().with_max_items(KEYS_PER_BLOCK))
-        .with_block_cache_config(
-            BlockCacheConfig::default().with_capacity(CACHE_CAPACITY),
-        );
+        .with_block_cache_config(BlockCacheConfig::default().with_capacity(CACHE_CAPACITY));
 
     let db = DB::open(config).unwrap();
     let storage = FsStorage::new(PathBuf::from(ROOT));
@@ -289,8 +281,7 @@ fn build_table() -> Vec<String> {
 
     let start = Instant::now();
     for _ in 0..TOTAL_KEYS {
-        b.append_kv(&k, SeqMarked::new_normal(1, v.clone().into_bytes()))
-            .unwrap();
+        b.append_kv(&k, SeqMarked::new_normal(1, v.clone().into_bytes())).unwrap();
         keys.push(k.clone());
         k = next_perm(&k);
         v = next_perm(&v);
@@ -306,9 +297,7 @@ fn open_fresh() -> Rotbl {
     let config = Config::default()
         .with_root_path(ROOT)
         .with_block_config(BlockConfig::default().with_max_items(KEYS_PER_BLOCK))
-        .with_block_cache_config(
-            BlockCacheConfig::default().with_capacity(CACHE_CAPACITY),
-        );
+        .with_block_cache_config(BlockCacheConfig::default().with_capacity(CACHE_CAPACITY));
     let storage = FsStorage::new(PathBuf::from(ROOT));
     Rotbl::open(storage, config, TABLE).unwrap()
 }
@@ -341,9 +330,7 @@ fn seed(s: u64) -> u64 {
 }
 
 fn next_rand(state: &mut u64) -> u64 {
-    *state = state
-        .wrapping_mul(6364136223846793005)
-        .wrapping_add(1442695040888963407);
+    *state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
     *state
 }
 

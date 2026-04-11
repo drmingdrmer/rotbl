@@ -4,26 +4,33 @@ pub mod impls;
 
 use std::fmt::Debug;
 use std::io;
-use std::io::BufRead;
-use std::io::Seek;
 use std::io::Write;
 
-pub type BoxReader = Box<dyn Reader + Send>;
+pub type BoxReaderAt = Box<dyn ReaderAt>;
 pub type BoxWriter = Box<dyn Writer + Send>;
 
-/// The type of the reader.
+/// A stateless positional reader.
 ///
-/// The reader requires `Seek` to load a specific position of the data.
-/// And it is the implementation's duty to provide a `BufRead` implementation.
-/// Usually using `BufReader` to wrap the reader would be the best choice.
-///
-/// The reader must implement `Send` to ensure it can be safely used across await points.
-pub trait Reader
-where Self: Seek + BufRead + Send + Debug + 'static
-{
-}
+/// `read_exact_at` takes an explicit `offset` and `&self`, so implementations
+/// must be safe to call concurrently from multiple threads on the same
+/// handle — typically by using positional I/O such as `pread(2)` on unix or
+/// `ReadFile` with `OVERLAPPED` on windows. This is the sole read API used
+/// by rotbl's hot block-load path, so that N concurrent cache misses can
+/// issue N parallel disk reads instead of serializing behind a single file
+/// mutex.
+#[allow(clippy::len_without_is_empty)]
+pub trait ReaderAt: Send + Sync + Debug + 'static {
+    /// Read exactly `buf.len()` bytes starting at `offset`.
+    ///
+    /// Returns `Err(ErrorKind::UnexpectedEof)` if fewer bytes are available.
+    fn read_exact_at(&self, buf: &mut [u8], offset: u64) -> io::Result<()>;
 
-impl<T: Seek + BufRead + Send + Debug + 'static> Reader for T {}
+    /// Return the total size of the underlying object in bytes.
+    ///
+    /// Used at `Rotbl::open` time to locate the fixed-size footer at the
+    /// tail of the file without needing a separate `seek` call.
+    fn len(&self) -> io::Result<u64>;
+}
 
 /// Represents a writer for the storage system.
 ///
@@ -52,8 +59,14 @@ where Self: Write + Debug + 'static
 pub trait Storage
 where Self: Debug + Clone + Send + 'static
 {
-    /// Get a reader to read the data of the given key.
-    fn reader(&mut self, key: &str) -> Result<BoxReader, io::Error>;
+    /// Get a positional reader for the given key.
+    ///
+    /// The returned handle is the only read API rotbl uses: both the
+    /// one-shot metadata parsing in `Rotbl::open` and the concurrent
+    /// block-load hot path go through [`ReaderAt::read_exact_at`]. Backends
+    /// are expected to use positional I/O (`pread`, etc.) so that N
+    /// concurrent block loads can progress in parallel.
+    fn reader_at(&mut self, key: &str) -> Result<BoxReaderAt, io::Error>;
 
     /// Get a writer to write data to a specific key in the storage.
     fn writer(&mut self, key: &str) -> Result<BoxWriter, io::Error>;
