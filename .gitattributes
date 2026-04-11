@@ -1,0 +1,4 @@
+# Keep the backward-compat golden dumps in LF regardless of platform,
+# so `fs::read_to_string` returns the same bytes on Windows as on unix
+# and the compat assertion does not need platform-specific handling.
+rotbl/tests/compat/**/dump.txt text eol=lf

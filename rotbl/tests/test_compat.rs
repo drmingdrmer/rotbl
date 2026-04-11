@@ -91,8 +91,10 @@ fn do_test_compat(version: &str) -> anyhow::Result<()> {
     let data = t.dump().collect::<Result<Vec<_>, _>>()?;
     let data = data.join("\n");
 
-    // compare with the dump file
-    let dump = fs::read_to_string(dump_path)?;
+    // Compare with the dump file. Normalize CRLF to LF because on
+    // Windows git may check out the golden file with CRLF line endings
+    // under `core.autocrlf=true`, while `data` is always joined with LF.
+    let dump = fs::read_to_string(dump_path)?.replace("\r\n", "\n");
     assert_eq!(data, dump);
 
     Ok(())
