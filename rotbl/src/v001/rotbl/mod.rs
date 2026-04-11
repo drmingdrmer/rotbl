@@ -54,8 +54,12 @@ use crate::version::Version;
 /// ```
 #[derive(Debug)]
 pub struct Rotbl {
-    /// The db this table belongs
-    block_cache: Arc<Mutex<BlockCache>>,
+    /// A concurrent, weight-bounded cache of decoded blocks.
+    ///
+    /// Backed by [`moka::sync::Cache`] — `get` is lock-free and concurrent
+    /// cache misses for the same block are coalesced by `try_get_with`, so
+    /// a thundering herd of readers only triggers one disk read per block.
+    block_cache: BlockCache,
 
     file: Arc<Mutex<BoxReader>>,
 
@@ -181,18 +185,22 @@ impl Rotbl {
     }
 
     pub fn cache_stat(&self) -> CacheStat {
-        let c = self.block_cache.lock().unwrap();
-        CacheStat::new(c.len() as u64, c.size() as u64)
+        // Flush moka's pending admissions/evictions so the counters reflect
+        // the current cache state — moka updates entry_count/weighted_size
+        // via a background maintenance queue and the fresh values only
+        // become visible after pending tasks have been drained.
+        self.block_cache.run_pending_tasks();
+        CacheStat::new(
+            self.block_cache.entry_count(),
+            self.block_cache.weighted_size(),
+        )
     }
 
     /// Return the block if it is in the cache.
     pub fn get_block(&self, block_num: u32) -> Option<Arc<Block>> {
         let block_id = BlockId::new(self.table_id, block_num);
 
-        let b = {
-            let mut c = self.block_cache.lock().unwrap();
-            c.get(&block_id).cloned()
-        };
+        let b = self.block_cache.get(&block_id);
 
         if b.is_some() {
             self.access_stat.hit_block(true);
@@ -203,37 +211,35 @@ impl Rotbl {
 
     /// Load a block from disk and fill it into the cache.
     ///
-    /// If the block is already in the cache, it will be returned immediately.
+    /// If the block is already in the cache, it is returned immediately.
+    /// Otherwise the block is loaded from disk, inserted into the cache,
+    /// and returned. Concurrent calls for the same `block_num` are coalesced
+    /// by the underlying moka cache: only one caller performs the disk read,
+    /// while the others block-wait and receive a clone of the loaded `Arc<Block>`.
     pub fn load_block(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
-        // Check cache first
+        // Fast path: record a cache hit and return immediately.
         if let Some(b) = self.get_block(block_num) {
             return Ok(b);
         }
 
+        // Slow path: delegate to moka's singleflight `try_get_with` so that
+        // at most one caller per `block_id` actually runs the disk loader.
+        let block_id = BlockId::new(self.table_id, block_num);
+        self.block_cache
+            .try_get_with(block_id, || self.load_block_from_disk(block_num))
+            .map_err(|e: Arc<io::Error>| io::Error::new(e.kind(), e.to_string()))
+    }
+
+    /// Load a block from disk under the file mutex.
+    ///
+    /// This is the initializer executed by `try_get_with` on a cache miss.
+    /// It also bumps the miss counter on `access_stat`.
+    fn load_block_from_disk(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
         let start = Instant::now();
         debug!("load_block start: {}", block_num);
 
-        let block = {
-            let mut f = self.file.lock().unwrap();
-
-            // Re-check: the cache may already be filled by another thread
-            if let Some(b) = self.get_block(block_num) {
-                debug!("load_block cache: {}", block_num);
-                return Ok(b);
-            }
-
-            // Load block from disk
-            let block = self.load_block_nocache(&mut f, block_num)?;
-
-            // Insert into cache
-            let block_id = BlockId::new(self.table_id, block_num);
-            {
-                let mut cache = self.block_cache.lock().unwrap();
-                cache.insert(block_id, block.clone());
-            }
-
-            block
-        };
+        let mut f = self.file.lock().unwrap();
+        let block = self.load_block_nocache(&mut f, block_num)?;
 
         debug!(
             "load_block   end: {}; elapsed: {:?}",

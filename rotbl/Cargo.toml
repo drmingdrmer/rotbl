@@ -24,7 +24,7 @@ futures-async-stream = { workspace = true }
 tokio                = { workspace = true }
 
 # data structure
-lru-cache-map        = { workspace = true }
+moka                 = { workspace = true }
 seq-marked           = { workspace = true }
 
 # serialization

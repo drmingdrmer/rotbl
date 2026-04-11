@@ -1,11 +1,8 @@
 use std::io;
 use std::sync::Arc;
-use std::sync::Mutex;
 
-use lru_cache_map::LruCache;
-
+use crate::v001::block_cache::new_block_cache;
 use crate::v001::block_cache::BlockCache;
-use crate::v001::block_cache::BlockMeter;
 use crate::v001::config::Config;
 
 pub struct DB {
@@ -13,7 +10,7 @@ pub struct DB {
     pub(crate) config: Config,
 
     #[allow(dead_code)]
-    pub(crate) block_cache: Arc<Mutex<BlockCache>>,
+    pub(crate) block_cache: BlockCache,
 }
 
 impl DB {
@@ -32,9 +29,7 @@ impl DB {
         self.config.clone()
     }
 
-    pub fn new_cache(config: Config) -> Arc<Mutex<BlockCache>> {
-        let bc = &config.block_cache;
-        let block_cache = LruCache::with_meter(bc.max_items(), bc.capacity(), BlockMeter);
-        Arc::new(Mutex::new(block_cache))
+    pub fn new_cache(config: Config) -> BlockCache {
+        new_block_cache(&config.block_cache)
     }
 }

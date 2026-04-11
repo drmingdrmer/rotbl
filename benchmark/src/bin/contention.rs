@@ -53,7 +53,6 @@ const VAL_LEN: usize = 400;
 // Tight cache: ~256 blocks out of ~32768 total → ~99% miss under random access.
 // Forces sustained contention on file.lock() rather than hitting cache.
 const CACHE_CAPACITY: usize = 4 * 1024 * 1024;
-const CACHE_MAX_ITEMS: usize = 512;
 
 #[tokio::main]
 async fn main() {
@@ -73,11 +72,7 @@ async fn main() {
         VAL_LEN,
         file_size as f64 / (1024.0 * 1024.0)
     );
-    println!(
-        "cache: capacity={} MB max_items={}",
-        CACHE_CAPACITY / (1024 * 1024),
-        CACHE_MAX_ITEMS
-    );
+    println!("cache: capacity={} MB", CACHE_CAPACITY / (1024 * 1024));
     println!();
 
     for concurrency in [4, 16, 64, 256] {
@@ -281,9 +276,7 @@ fn build_table() -> Vec<String> {
         .with_root_path(ROOT)
         .with_block_config(BlockConfig::default().with_max_items(KEYS_PER_BLOCK))
         .with_block_cache_config(
-            BlockCacheConfig::default()
-                .with_max_items(CACHE_MAX_ITEMS)
-                .with_capacity(CACHE_CAPACITY),
+            BlockCacheConfig::default().with_capacity(CACHE_CAPACITY),
         );
 
     let db = DB::open(config).unwrap();
@@ -314,9 +307,7 @@ fn open_fresh() -> Rotbl {
         .with_root_path(ROOT)
         .with_block_config(BlockConfig::default().with_max_items(KEYS_PER_BLOCK))
         .with_block_cache_config(
-            BlockCacheConfig::default()
-                .with_max_items(CACHE_MAX_ITEMS)
-                .with_capacity(CACHE_CAPACITY),
+            BlockCacheConfig::default().with_capacity(CACHE_CAPACITY),
         );
     let storage = FsStorage::new(PathBuf::from(ROOT));
     Rotbl::open(storage, config, TABLE).unwrap()

@@ -24,7 +24,7 @@ itertools            = { version = "0.11.0" }
 tokio                = { version = "1.33.0", features = ["rt-multi-thread", "macros"] }
 
 # data structure
-lru-cache-map     = { version = "0.2.0" }
+moka              = { version = "0.12", features = ["sync"] }
 maplit            = { version = "1.0.2" }
 seq-marked        = { version = "0.3.1", features = [ "seq-marked-bincode", "seqv-serde" ] }
 

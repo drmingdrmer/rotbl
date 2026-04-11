@@ -19,7 +19,7 @@ fn main() -> Result<(), io::Error> {
     let args = Args::parse();
 
     let config = Config::default().with_block_cache_config(
-        BlockCacheConfig::default().with_max_items(100).with_capacity(256 * 1024 * 1024),
+        BlockCacheConfig::default().with_capacity(256 * 1024 * 1024),
     );
 
     let path = args.path.clone();

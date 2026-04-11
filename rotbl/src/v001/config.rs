@@ -2,30 +2,17 @@
 #[derive(Debug)]
 #[derive(Clone)]
 pub struct BlockCacheConfig {
-    /// Max blocks to cache
-    pub max_items: Option<usize>,
-
     /// Max bytes to cache
     pub capacity: Option<usize>,
 }
 
 #[allow(clippy::identity_op)]
 impl BlockCacheConfig {
-    const DEFAULT_MAX_ITEM: usize = 1024;
     const DEFAULT_CAPACITY: usize = 1 * 1024 * 1024 * 1024;
-
-    pub fn with_max_items(mut self, max_items: usize) -> Self {
-        self.max_items = Some(max_items);
-        self
-    }
 
     pub fn with_capacity(mut self, capacity: usize) -> Self {
         self.capacity = Some(capacity);
         self
-    }
-
-    pub fn max_items(&self) -> usize {
-        self.max_items.unwrap_or(Self::DEFAULT_MAX_ITEM)
     }
 
     pub fn capacity(&self) -> usize {
@@ -109,7 +96,6 @@ impl Config {
     }
 
     pub fn disable_cache(&mut self) {
-        self.block_cache.max_items = Some(0);
         self.block_cache.capacity = Some(0);
     }
 

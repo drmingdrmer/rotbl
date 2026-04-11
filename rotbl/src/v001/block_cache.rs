@@ -1,22 +1,33 @@
-use std::borrow::Borrow;
 use std::sync::Arc;
 
-use lru_cache_map::hashbrown::hash_map::DefaultHashBuilder;
-use lru_cache_map::meter::Meter;
-use lru_cache_map::LruCache;
+use moka::sync::Cache;
 
 use crate::v001::block::Block;
 use crate::v001::block_id::BlockId;
+use crate::v001::config::BlockCacheConfig;
 
-pub struct BlockMeter;
+/// A concurrent, weight-bounded block cache backed by [`moka::sync::Cache`].
+///
+/// Keyed by [`BlockId`], values are `Arc<Block>`. Each entry is weighed by
+/// `Block::data_encoded_size()`, so [`BlockCacheConfig::capacity`] caps total
+/// bytes rather than entry count.
+///
+/// Concurrency properties:
+/// - `get` is lock-free and scales with the number of cores.
+/// - `try_get_with` coalesces concurrent misses for the same key: only the
+///   first caller runs the initializer (disk load), the rest block-wait and
+///   then receive a clone of the loaded `Arc<Block>`. This eliminates the
+///   "thundering herd" where N tasks simultaneously read the same block.
+pub type BlockCache = Cache<BlockId, Arc<Block>>;
 
-impl<K> Meter<K, Arc<Block>> for BlockMeter {
-    type Measure = usize;
-
-    fn measure<Q: ?Sized>(&self, _: &Q, v: &Arc<Block>) -> usize
-    where K: Borrow<Q> {
-        v.data_encoded_size() as usize
-    }
+/// Build a new [`BlockCache`] from a [`BlockCacheConfig`].
+///
+/// The resulting cache enforces a total weighted capacity equal to
+/// `cfg.capacity()` bytes. Each block is charged its `data_encoded_size()`,
+/// with a floor of 1 so zero-sized blocks still occupy a slot.
+pub fn new_block_cache(cfg: &BlockCacheConfig) -> BlockCache {
+    Cache::builder()
+        .max_capacity(cfg.capacity() as u64)
+        .weigher(|_k: &BlockId, v: &Arc<Block>| v.data_encoded_size().max(1) as u32)
+        .build()
 }
-
-pub type BlockCache = LruCache<BlockId, Arc<Block>, DefaultHashBuilder, BlockMeter>;
