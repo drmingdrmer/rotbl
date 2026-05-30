@@ -64,10 +64,8 @@ impl Dump {
 
             for block_num in 0..self.rotbl.stat.block_num {
                 let block = self.rotbl.load_block(block_num)?;
-                let kvs = block
-                    .range::<String, _>(..)
-                    .map(|(k, v)| (k.clone(), v.clone()))
-                    .collect::<Vec<_>>();
+                let kvs =
+                    block.range(..).map(|(k, v)| (k.to_string(), v.clone())).collect::<Vec<_>>();
 
                 for (k, v) in kvs {
                     yield format!("Block-{:>04}: {}: {}", block_num, k, v.display_with_debug());

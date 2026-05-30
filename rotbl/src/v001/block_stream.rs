@@ -9,6 +9,7 @@ use futures::Stream;
 
 use crate::v001::block::Block;
 use crate::v001::block::BlockIter;
+use crate::v001::SegmentedKey;
 use crate::v001::SeqMarked;
 
 /// A stream of key-value pairs in a block.
@@ -45,7 +46,7 @@ impl BlockStream {
         let block_ptr = block.as_ref() as *const Block;
         let block_ref = unsafe { &*block_ptr };
 
-        let iter = block_ref.range::<String, _>(range);
+        let iter = block_ref.range(range);
 
         Self {
             block,
@@ -57,7 +58,7 @@ impl BlockStream {
     /// Returns the next key-value pair in the block.
     ///
     /// This method wraps unsafe operation and provide lifetime safety.
-    fn next(self: Pin<&mut Self>) -> Option<(&String, &SeqMarked)> {
+    fn next(self: Pin<&mut Self>) -> Option<(SegmentedKey, &SeqMarked)> {
         // Safety: We do not move the mutable reference Thus Pin is safe.
         let it = unsafe { &mut self.get_unchecked_mut().iter };
         it.next()
@@ -69,7 +70,7 @@ impl Stream for BlockStream {
     type Item = (String, SeqMarked);
 
     fn poll_next(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let next = self.next().map(|(k, v)| (k.clone(), v.clone()));
+        let next = self.next().map(|(k, v)| (k.to_string(), v.clone()));
         Poll::Ready(next)
     }
 }

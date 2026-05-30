@@ -32,17 +32,17 @@ async fn test_rotbl_cache_cap_limit<S: Storage>(mut ctx: TestContext<S>) -> anyh
     // println!("{:?}", cache_stat);
 
     t.get("a").await?;
-    assert_eq!(t.cache_stat(), CacheStat::new(1, 5));
+    assert_eq!(t.cache_stat(), CacheStat::new(1, 6));
     t.get("b").await?;
-    assert_eq!(t.cache_stat(), CacheStat::new(2, 12));
-    t.get("c").await?;
-    assert_eq!(t.cache_stat(), CacheStat::new(3, 19));
-    t.get("d").await?;
     assert_eq!(t.cache_stat(), CacheStat::new(2, 14));
+    t.get("c").await?;
+    assert_eq!(t.cache_stat(), CacheStat::new(1, 8));
+    t.get("d").await?;
+    assert_eq!(t.cache_stat(), CacheStat::new(2, 16));
     t.get("a").await?;
-    assert_eq!(t.cache_stat(), CacheStat::new(3, 19));
+    assert_eq!(t.cache_stat(), CacheStat::new(2, 16));
     t.get("b").await?;
-    assert_eq!(t.cache_stat(), CacheStat::new(3, 19));
+    assert_eq!(t.cache_stat(), CacheStat::new(2, 16));
 
     Ok(())
 }

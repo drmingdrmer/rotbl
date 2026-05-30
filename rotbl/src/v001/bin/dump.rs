@@ -80,7 +80,12 @@ fn print_prefix_stat(r: &Arc<Rotbl>, sample: usize) -> Result<(), io::Error> {
     let data_size = stat.data_size;
     let file_size = r.file_size();
 
-    println!("file:  header={}, file_size={} ({:.1} MiB)", r.header(), file_size, mib(file_size as f64));
+    println!(
+        "file:  header={}, file_size={} ({:.1} MiB)",
+        r.header(),
+        file_size,
+        mib(file_size as f64)
+    );
     println!("stat:  {}", stat);
 
     let step = if sample == 0 || (block_num as usize) <= sample {
@@ -107,11 +112,11 @@ fn print_prefix_stat(r: &Arc<Rotbl>, sample: usize) -> Result<(), io::Error> {
         let mut last: Option<String> = None;
         let mut keys = 0u64;
         let mut key_bytes = 0u64;
-        for (k, _v) in block.range::<String, _>(..) {
+        for (k, _v) in block.range(..) {
             if first.is_none() {
-                first = Some(k.clone());
+                first = Some(k.to_string());
             }
-            last = Some(k.clone());
+            last = Some(k.to_string());
             keys += 1;
             key_bytes += k.len() as u64;
         }
@@ -157,17 +162,40 @@ fn print_prefix_stat(r: &Arc<Rotbl>, sample: usize) -> Result<(), io::Error> {
     let est_disk_savings = disk_savings_share * est_total_key_bytes;
 
     println!();
-    println!("--- sampled {} of {} blocks (step={}) ---", s_blocks, block_num, step.max(1));
+    println!(
+        "--- sampled {} of {} blocks (step={}) ---",
+        s_blocks,
+        block_num,
+        step.max(1)
+    );
     println!("avg keys/block          : {:.0}", avg_keys);
     println!("avg key length          : {:.1} B", avg_key_len);
-    println!("block prefix length     : min={} avg={:.1} max={} B", min_plen, avg_plen_block, max_plen);
+    println!(
+        "block prefix length     : min={} avg={:.1} max={} B",
+        min_plen, avg_plen_block, max_plen
+    );
     println!("key-weighted avg prefix : {:.1} B", avg_plen_key);
-    println!("prefix share of key bytes: {:.1} %", prefix_share_of_keys * 100.0);
+    println!(
+        "prefix share of key bytes: {:.1} %",
+        prefix_share_of_keys * 100.0
+    );
     println!();
     println!("--- extrapolated to whole file ---");
-    println!("est. total key bytes    : {:.1} MiB ({:.1} % of data_size)", mib(est_total_key_bytes), est_total_key_bytes / data_size as f64 * 100.0);
-    println!("est. in-memory savings  : {:.1} MiB", mib(est_inmem_savings));
-    println!("est. on-disk savings    : {:.1} MiB ({:.2} % of data_size, {:.2} % of file_size)", mib(est_disk_savings), est_disk_savings / data_size as f64 * 100.0, est_disk_savings / file_size as f64 * 100.0);
+    println!(
+        "est. total key bytes    : {:.1} MiB ({:.1} % of data_size)",
+        mib(est_total_key_bytes),
+        est_total_key_bytes / data_size as f64 * 100.0
+    );
+    println!(
+        "est. in-memory savings  : {:.1} MiB",
+        mib(est_inmem_savings)
+    );
+    println!(
+        "est. on-disk savings    : {:.1} MiB ({:.2} % of data_size, {:.2} % of file_size)",
+        mib(est_disk_savings),
+        est_disk_savings / data_size as f64 * 100.0,
+        est_disk_savings / file_size as f64 * 100.0
+    );
     println!();
     println!("--- example block prefixes ---");
     for (bn, plen, p) in &examples {

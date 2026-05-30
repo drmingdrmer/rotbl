@@ -24,7 +24,7 @@ fn test_rotbl_get_block<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
     {
         // Block is filled into the cache.
         let b = t.get_block(0).unwrap();
-        let keys = b.range::<String, _>(..).map(|(k, _)| k.clone()).collect::<Vec<_>>();
+        let keys = b.range(..).map(|(k, _)| k.to_string()).collect::<Vec<_>>();
         assert_eq!(keys, vec!["a", "b", "c"]);
     }
 
@@ -37,13 +37,13 @@ fn test_rotbl_load_block<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> 
 
     {
         let b = t.load_block(0)?;
-        let keys = b.range::<String, _>(..).map(|(k, _)| k.clone()).collect::<Vec<_>>();
+        let keys = b.range(..).map(|(k, _)| k.to_string()).collect::<Vec<_>>();
         assert_eq!(keys, vec!["a", "b", "c"]);
     }
 
     {
         let b = t.load_block(1)?;
-        let keys = b.range::<String, _>(..).map(|(k, _)| k.clone()).collect::<Vec<_>>();
+        let keys = b.range(..).map(|(k, _)| k.to_string()).collect::<Vec<_>>();
         assert_eq!(keys, vec!["d"]);
     }
 

@@ -328,7 +328,7 @@ impl Rotbl {
             let block = self.load_block_async(m.block_num).await?;
             let it = block.range(range.clone());
             for (k, v) in it {
-                yield (k.clone(), v.clone());
+                yield (k.to_string(), v.clone());
             }
         }
     }
