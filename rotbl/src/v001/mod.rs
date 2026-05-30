@@ -13,6 +13,7 @@ mod range;
 mod rotbl;
 mod rotbl_meta;
 pub mod rotbl_meta_payload;
+mod segmented_key;
 pub(crate) mod testing;
 
 pub(crate) mod bincode_config;
@@ -35,6 +36,7 @@ pub use rotbl::dump::Dump;
 pub use rotbl::stat;
 pub use rotbl::Rotbl;
 pub use rotbl_meta::RotblMeta;
+pub use segmented_key::SegmentedKey;
 pub use seq_marked::Marked;
 pub use seq_marked::SeqMarked;
 pub use types::Segment;
