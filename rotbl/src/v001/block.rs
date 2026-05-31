@@ -132,8 +132,10 @@ impl Decode for Block {
 #[allow(clippy::redundant_clone)]
 mod tests {
     use std::collections::BTreeMap;
+    use std::io::Write;
     use std::ops::RangeBounds;
 
+    use codeq::config::CodeqConfig;
     use codeq::testing::test_codec;
     use codeq::Decode;
     use codeq::Encode;
@@ -142,9 +144,11 @@ mod tests {
     use crate::typ::Type;
     use crate::v001::bincode_config::bincode_config;
     use crate::v001::block::Block;
+    use crate::v001::block_encoding_meta::BlockEncodingMeta;
     use crate::v001::header::Header;
     use crate::v001::testing::bb;
     use crate::v001::testing::ss;
+    use crate::v001::types::Checksum;
     use crate::v001::SeqMarked;
     use crate::version::Version;
 
@@ -322,6 +326,85 @@ mod tests {
         assert_eq!(decoded.prefix(), block.prefix());
         assert_eq!(decoded.data, block.data);
 
+        Ok(())
+    }
+
+    /// Frame arbitrary `payload` bytes into a V002 block with a valid checksum,
+    /// so a test can drive decode against a malformed-but-intact payload (one the
+    /// block checksum would otherwise mask).
+    fn frame_v002_block(block_num: u32, payload: &[u8]) -> Vec<u8> {
+        let mut out = Vec::new();
+        {
+            let mut cw = Checksum::new_writer(&mut out);
+            Header::new(Type::Block, Version::V002).encode(&mut cw).unwrap();
+            BlockEncodingMeta::new(block_num, payload.len() as u64).encode(&mut cw).unwrap();
+            cw.write_all(payload).unwrap();
+            cw.write_checksum().unwrap();
+        }
+        out
+    }
+
+    #[test]
+    fn test_block_v002_decode_rejects_unknown_compression_tag() {
+        // Leading tag 9 is not a known compression type; the frame is otherwise intact.
+        let bytes = frame_v002_block(7, &[9, 0, 1, 2, 3]);
+        let err = Block::decode(&bytes[..]).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(
+            err.to_string().contains("unknown V002 compression tag: 9"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_block_v002_decode_rejects_empty_payload() {
+        // Zero-length payload: not even a compression tag is present.
+        let bytes = frame_v002_block(7, &[]);
+        let err = Block::decode(&bytes[..]).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        assert!(
+            err.to_string().contains("empty V002 block payload"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_block_v002_decode_rejects_garbage_zstd_frame() {
+        // Tag 1 claims zstd, but the body is not a valid zstd frame.
+        let bytes = frame_v002_block(7, &[1, 0xff, 0xff, 0xff, 0xff]);
+        assert!(Block::decode(&bytes[..]).is_err());
+    }
+
+    #[test]
+    fn test_block_v002_decode_rejects_bitrot() -> anyhow::Result<()> {
+        let data = maplit::btreemap! {
+            ss("k1") => SeqMarked::new_normal(1, bb("v1")),
+            ss("k2") => SeqMarked::new_normal(2, bb("v2")),
+        };
+        let mut bytes = Vec::new();
+        Block::new(7, data).encode(&mut bytes)?;
+
+        // Flip a byte inside the compressed body (just before the trailing checksum).
+        // The block checksum, verified before decompression, must reject it.
+        let i = bytes.len() - 5;
+        bytes[i] ^= 0xff;
+
+        let err = Block::decode(&bytes[..]).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        Ok(())
+    }
+
+    #[test]
+    fn test_block_v002_decode_rejects_truncation() -> anyhow::Result<()> {
+        let data = maplit::btreemap! {
+            ss("k1") => SeqMarked::new_normal(1, bb("v1")),
+            ss("k2") => SeqMarked::new_normal(2, bb("v2")),
+        };
+        let mut bytes = Vec::new();
+        Block::new(7, data).encode(&mut bytes)?;
+
+        // Bytes are missing relative to the framed length: decode must error, not hang or panic.
+        assert!(Block::decode(&bytes[..bytes.len() - 10]).is_err());
         Ok(())
     }
 }
