@@ -15,5 +15,6 @@ repository.workspace = true
 
 [dependencies]
 rotbl = { path = "../rotbl" }
+codeq = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 futures              = { workspace = true }
