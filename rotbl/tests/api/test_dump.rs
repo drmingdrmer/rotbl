@@ -21,6 +21,7 @@ fn test_dump<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
     let d = Dump::new(Arc::new(t));
     let got = d.dump().collect::<Result<Vec<_>, io::Error>>()?;
 
+    // file_size and block positions track the pinned libzstd (zstd-sys in Cargo.toml).
     let want = vec![
         r#"Rotbl:"#,
         r#"    header: {typ: Rotbl, version: V001}"#,

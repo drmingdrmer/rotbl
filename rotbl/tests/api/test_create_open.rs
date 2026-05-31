@@ -31,6 +31,7 @@ fn test_create_table<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
     assert_eq!(t.meta().seq(), 5);
     assert_eq!(t.block_index(), &BlockIndex::new(index_data.clone()));
 
+    // Exact sizes here track the pinned libzstd (zstd-sys in Cargo.toml); update if the pin moves.
     assert_eq!(t.stat(), &RotblStat {
         block_num: 2,
         key_num: 4,
@@ -70,6 +71,7 @@ fn test_open_table<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
         &BlockIndex::new(index_data.clone()).with_encoded_size(140)
     );
 
+    // Exact sizes here track the pinned libzstd (zstd-sys in Cargo.toml); update if the pin moves.
     assert_eq!(t.stat(), &RotblStat {
         block_num: 2,
         key_num: 4,

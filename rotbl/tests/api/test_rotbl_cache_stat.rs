@@ -31,6 +31,7 @@ async fn test_rotbl_cache_cap_limit<S: Storage>(mut ctx: TestContext<S>) -> anyh
     let _ = cache_stat;
     // println!("{:?}", cache_stat);
 
+    // Cache weights are encoded block sizes, tracking the pinned libzstd (zstd-sys, Cargo.toml).
     t.get("a").await?;
     assert_eq!(t.cache_stat(), CacheStat::new(1, 16));
     t.get("b").await?;

@@ -35,6 +35,9 @@ codeq                = { workspace = true }
 serde                = { workspace = true }
 serde_json           = { workspace = true }
 zstd                 = { workspace = true }
+# Used only transitively via zstd; declared here so the workspace pin on libzstd
+# takes effect, keeping the exact-size golden tests byte-reproducible.
+zstd-sys             = { workspace = true }
 
 #byte-unit            = { workspace = true }
 num-format            = { workspace = true }
