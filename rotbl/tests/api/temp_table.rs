@@ -40,8 +40,8 @@ where
     let t = Rotbl::create_table(storage, db.config(), path, rotbl_meta, kvs)?;
 
     let index_data = vec![
-        BlockIndexEntry::new(0, Segment::new(36, 74), ss("a"), ss("c")),
-        BlockIndexEntry::new(1, Segment::new(110, 64), ss("d"), ss("d")),
+        BlockIndexEntry::new(0, Segment::new(36, 84), ss("a"), ss("c")),
+        BlockIndexEntry::new(1, Segment::new(120, 74), ss("d"), ss("d")),
     ];
 
     Ok((t, index_data))

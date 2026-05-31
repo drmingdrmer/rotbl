@@ -1,9 +1,10 @@
 //! V002 block codec — the current on-disk format.
 //!
 //! A block is framed as `header + meta + payload + checksum`. The V002 payload
-//! is the common prefix followed by the suffix-keyed entry map, encoded as two
-//! independent bincode sections so a future format change can touch one without
-//! the other. New blocks are written in this format.
+//! is `[compression tag][body]`: the tag records the compression algorithm, and
+//! the body is that algorithm applied to two independent bincode sections — the
+//! common prefix and the suffix-keyed entry map — so a future format change can
+//! touch one without the other. New blocks are zstd compressed.
 
 use std::collections::BTreeMap;
 use std::io::Error;
@@ -26,19 +27,37 @@ use crate::v001::types::Checksum;
 use crate::v001::SeqMarked;
 use crate::version::Version;
 
+/// Compression tag: the body is a single zstd frame.
+const COMPRESSION_ZSTD: u8 = 1;
+/// zstd level used for new blocks: 1, the fastest level, favoring throughput
+/// over compression ratio. (Decompression speed is level-independent.)
+const ZSTD_LEVEL: i32 = 1;
+
+/// Wrap any error as an [`Error`] of [`InvalidData`](std::io::ErrorKind::InvalidData) kind.
+fn invalid<E>(e: E) -> Error
+where E: Into<Box<dyn std::error::Error + Send + Sync>> {
+    Error::new(std::io::ErrorKind::InvalidData, e)
+}
+
 /// Encode a block in the V002 on-disk layout: `header + meta + payload +
 /// checksum`. Returns the number of bytes written.
 pub(crate) fn block_encode_v002<W: Write>(block: &Block, mut w: W) -> Result<usize, Error> {
-    let invalid = |e| Error::new(std::io::ErrorKind::InvalidData, e);
     let mut n = 0usize;
 
-    // The prefix and entries are two separate bincode sections. Buffer them
-    // first: their total size goes into the meta, which precedes the payload.
-    let mut payload = Vec::new();
-    bincode::encode_into_std_write(block.prefix.as_str(), &mut payload, bincode_config())
+    // The body is two separate bincode sections: the common prefix and the
+    // suffix-keyed entry map.
+    let mut raw = Vec::new();
+    bincode::encode_into_std_write(block.prefix.as_str(), &mut raw, bincode_config())
         .map_err(invalid)?;
-    bincode::encode_into_std_write(&block.data, &mut payload, bincode_config()).map_err(invalid)?;
-    let encoded_size = payload.len() as u64;
+    bincode::encode_into_std_write(&block.data, &mut raw, bincode_config()).map_err(invalid)?;
+
+    // Always compress; the leading tag records the algorithm so the format can
+    // add others later.
+    let body = zstd::encode_all(raw.as_slice(), ZSTD_LEVEL)?;
+
+    // Buffer first: the payload size (tag byte + body) goes into the meta, which
+    // is written before the payload.
+    let encoded_size = 1 + body.len() as u64;
 
     let mut cw = Checksum::new_writer(&mut w);
 
@@ -47,7 +66,8 @@ pub(crate) fn block_encode_v002<W: Write>(block: &Block, mut w: W) -> Result<usi
     let meta = BlockEncodingMeta::new(block.meta.block_num(), encoded_size);
     n += meta.encode(&mut cw)?;
 
-    cw.write_all(&payload)?;
+    cw.write_all(&[COMPRESSION_ZSTD])?;
+    cw.write_all(&body)?;
     n += encoded_size as usize;
     n += cw.write_checksum()?;
 
@@ -67,11 +87,17 @@ pub(crate) fn block_decode_v002<R: Read>(
     cr.read_exact(&mut buf)?;
     cr.verify_checksum(|| "Block::decode()")?;
 
-    let invalid = |e| Error::new(std::io::ErrorKind::InvalidData, e);
+    // Payload is `[compression tag][body]`; recover the raw bincode body.
+    let (tag, body) = buf.split_first().ok_or_else(|| invalid("empty V002 block payload"))?;
+    let raw = match *tag {
+        COMPRESSION_ZSTD => zstd::decode_all(body)?,
+        other => return Err(invalid(format!("unknown V002 compression tag: {other}"))),
+    };
+
     let (prefix, read): (String, usize) =
-        bincode::decode_from_slice(&buf, bincode_config()).map_err(invalid)?;
+        bincode::decode_from_slice(&raw, bincode_config()).map_err(invalid)?;
     let (data, _): (BTreeMap<String, SeqMarked>, usize) =
-        bincode::decode_from_slice(&buf[read..], bincode_config()).map_err(invalid)?;
+        bincode::decode_from_slice(&raw[read..], bincode_config()).map_err(invalid)?;
 
     Ok(Block {
         header: Header::new(Type::Block, Version::V002),

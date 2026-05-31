@@ -131,6 +131,7 @@ impl Decode for Block {
 #[cfg(test)]
 #[allow(clippy::redundant_clone)]
 mod tests {
+    use std::collections::BTreeMap;
     use std::ops::RangeBounds;
 
     use codeq::testing::test_codec;
@@ -279,15 +280,47 @@ mod tests {
         assert_eq!(n, b.len());
         assert_eq!(block.header, Header::new(Type::Block, Version::V002));
 
-        // V002 payload is bincode of (prefix, suffix_map); here the prefix is empty.
-        let encoded_data =
-            bincode::encode_to_vec((block.prefix.as_str(), &block.data), bincode_config()).unwrap();
-        println!("encoded: {:?}", b);
-
-        // Block does not know about the encoded size when it is created.
-        block.meta.data_encoded_size = encoded_data.len() as u64;
+        // Block::new() does not know the on-disk encoded size; mirror what encode
+        // wrote (the payload is `[compression tag][zstd body]`).
+        block.meta.data_encoded_size = Block::decode(&b[..])?.data_encoded_size();
 
         test_codec(&b[..], &block)?;
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_block_v002_compresses_large_payload() -> anyhow::Result<()> {
+        // 500 entries sharing one repeated value: highly compressible.
+        let data: BTreeMap<String, SeqMarked> = (0..500u64)
+            .map(|i| {
+                (
+                    ss(format!("key/{i:08}")),
+                    SeqMarked::new_normal(i, bb("repeated-value-payload")),
+                )
+            })
+            .collect();
+        let block = Block::new(0, data);
+
+        let mut encoded = Vec::new();
+        block.encode(&mut encoded)?;
+
+        // The raw, uncompressed bincode of the same payload.
+        let raw = bincode::encode_to_vec((block.prefix(), &block.data), bincode_config())?;
+
+        // Compression must shrink the whole framed block below the raw payload,
+        // even with the header + meta + checksum overhead.
+        assert!(
+            encoded.len() < raw.len(),
+            "compressed block is {} bytes, expected smaller than raw payload {} bytes",
+            encoded.len(),
+            raw.len()
+        );
+
+        // And it must round-trip back to the same entries.
+        let decoded = Block::decode(&encoded[..])?;
+        assert_eq!(decoded.prefix(), block.prefix());
+        assert_eq!(decoded.data, block.data);
 
         Ok(())
     }
