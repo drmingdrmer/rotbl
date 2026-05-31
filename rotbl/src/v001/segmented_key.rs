@@ -9,8 +9,9 @@ use std::fmt;
 ///
 /// The view cannot implement `Deref<Target = str>` or `AsRef<str>` because a
 /// `str` must be contiguous in memory. Callers that need an owned, contiguous
-/// key use [`ToString::to_string`] (via [`Display`]); callers that can consume
-/// the segments use [`prefix`](Self::prefix) and [`suffix`](Self::suffix).
+/// key use [`ToString::to_string`] (via [`Display`](std::fmt::Display)); callers
+/// that can consume the segments use [`prefix`](Self::prefix) and
+/// [`suffix`](Self::suffix).
 #[derive(Clone, Copy)]
 #[derive(Debug)]
 pub struct SegmentedKey<'a> {

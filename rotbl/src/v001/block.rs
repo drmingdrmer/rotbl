@@ -22,6 +22,14 @@ use crate::v001::SegmentedKey;
 use crate::v001::SeqMarked;
 use crate::version::Version;
 
+/// Wrap any error as an [`Error`] of [`InvalidData`](std::io::ErrorKind::InvalidData) kind.
+///
+/// Shared by the V001 and V002 block decoders.
+pub(crate) fn invalid<E>(e: E) -> Error
+where E: Into<Box<dyn std::error::Error + Send + Sync>> {
+    Error::new(std::io::ErrorKind::InvalidData, e)
+}
+
 /// Iterator of key-values inside a block.
 ///
 /// Yields each key as a [`SegmentedKey`] that borrows the block's common
@@ -44,6 +52,11 @@ impl<'a> Iterator for BlockIter<'a> {
 #[derive(Clone)]
 #[derive(PartialEq, Eq)]
 pub struct Block {
+    /// On-disk format header. An in-memory `Block` always reports V002: a block
+    /// decoded from a V001 file is canonicalized to V002 (see `block_decode_v001`)
+    /// because the in-memory form is identical and new blocks are always written
+    /// as V002. This field describes the in-memory representation, not necessarily
+    /// the version the bytes were read from.
     pub(crate) header: Header,
 
     pub(crate) meta: BlockEncodingMeta,
@@ -120,10 +133,7 @@ impl Decode for Block {
         } else if header == Header::new(Type::Block, Version::V002) {
             block_decode_v002(cr)
         } else {
-            Err(Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("unsupported block header: {}", header),
-            ))
+            Err(invalid(format!("unsupported block header: {}", header)))
         }
     }
 }

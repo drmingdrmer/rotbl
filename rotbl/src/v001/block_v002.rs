@@ -19,6 +19,7 @@ use codeq::Encode;
 use crate::buf;
 use crate::typ::Type;
 use crate::v001::bincode_config::bincode_config;
+use crate::v001::block::invalid;
 use crate::v001::block::Block;
 use crate::v001::block_encoding_meta::BlockEncodingMeta;
 use crate::v001::header::Header;
@@ -32,12 +33,6 @@ const COMPRESSION_ZSTD: u8 = 1;
 /// zstd level used for new blocks: 1, the fastest level, favoring throughput
 /// over compression ratio. (Decompression speed is level-independent.)
 const ZSTD_LEVEL: i32 = 1;
-
-/// Wrap any error as an [`Error`] of [`InvalidData`](std::io::ErrorKind::InvalidData) kind.
-fn invalid<E>(e: E) -> Error
-where E: Into<Box<dyn std::error::Error + Send + Sync>> {
-    Error::new(std::io::ErrorKind::InvalidData, e)
-}
 
 /// Encode a block in the V002 on-disk layout: `header + meta + payload +
 /// checksum`. Returns the number of bytes written.

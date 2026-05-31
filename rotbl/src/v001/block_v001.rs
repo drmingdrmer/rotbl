@@ -14,6 +14,7 @@ use codeq::Decode;
 use crate::buf;
 use crate::typ::Type;
 use crate::v001::bincode_config::bincode_config;
+use crate::v001::block::invalid;
 use crate::v001::block::Block;
 use crate::v001::block_encoding_meta::BlockEncodingMeta;
 use crate::v001::header::Header;
@@ -37,8 +38,7 @@ pub(crate) fn block_decode_v001<R: Read>(
     cr.verify_checksum(|| "Block::decode()")?;
 
     let (full, _): (BTreeMap<String, SeqMarked>, usize) =
-        bincode::decode_from_slice(&buf, bincode_config())
-            .map_err(|e| Error::new(std::io::ErrorKind::InvalidData, e))?;
+        bincode::decode_from_slice(&buf, bincode_config()).map_err(invalid)?;
     let (prefix, data) = Prefix::extract(full);
 
     Ok(Block {
