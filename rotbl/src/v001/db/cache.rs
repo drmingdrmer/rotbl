@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use moka::sync::Cache;
 
+use crate::v001::block::id::BlockId;
 use crate::v001::block::Block;
-use crate::v001::block_id::BlockId;
 use crate::v001::config::BlockCacheConfig;
 
 /// A concurrent, weight-bounded block cache backed by [`moka::sync::Cache`].

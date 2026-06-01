@@ -71,7 +71,7 @@ impl codeq::Decode for BlockEncodingMeta {
 mod tests {
     use codeq::testing::test_codec;
 
-    use crate::v001::block_encoding_meta::BlockEncodingMeta;
+    use crate::v001::block::encoding_meta::BlockEncodingMeta;
 
     #[test]
     fn test_block_meta_codec() -> anyhow::Result<()> {

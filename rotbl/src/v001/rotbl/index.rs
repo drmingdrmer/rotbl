@@ -196,8 +196,8 @@ mod tests {
     use codeq::Encode;
     use pretty_assertions::assert_eq;
 
-    use crate::v001::block_index::BlockIndex;
-    use crate::v001::block_index::BlockIndexEntry;
+    use crate::v001::rotbl::index::BlockIndex;
+    use crate::v001::rotbl::index::BlockIndexEntry;
     use crate::v001::testing::bbs;
     use crate::v001::testing::ss;
     use crate::v001::testing::vec_chain;

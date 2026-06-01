@@ -83,8 +83,8 @@ mod tests {
     use futures::executor::block_on;
     use futures::StreamExt;
 
+    use crate::v001::block::stream::BlockStream;
     use crate::v001::block::Block;
-    use crate::v001::block_stream::BlockStream;
     use crate::v001::testing::bb;
     use crate::v001::testing::ss;
     use crate::v001::testing::ss_vec;

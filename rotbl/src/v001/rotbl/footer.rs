@@ -67,7 +67,7 @@ impl codeq::Decode for Footer {
 mod tests {
     use codeq::testing::test_codec;
 
-    use crate::v001::footer::Footer;
+    use crate::v001::rotbl::footer::Footer;
     use crate::v001::types::Segment;
 
     #[test]

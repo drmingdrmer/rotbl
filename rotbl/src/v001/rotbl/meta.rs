@@ -8,7 +8,7 @@ use codeq::config::CodeqConfig;
 use crate::buf;
 use crate::typ::Type;
 use crate::v001::header::Header;
-use crate::v001::rotbl_meta_payload::RotblMetaPayload;
+use crate::v001::rotbl::meta_payload::RotblMetaPayload;
 use crate::v001::types::Checksum;
 use crate::v001::types::WithChecksum;
 use crate::version::Version;
@@ -103,7 +103,7 @@ mod tests {
     #[allow(unused_imports)]
     use pretty_assertions::assert_eq;
 
-    use crate::v001::rotbl_meta::RotblMeta;
+    use crate::v001::rotbl::meta::RotblMeta;
     use crate::v001::testing::bbs;
     use crate::v001::testing::vec_chain;
 

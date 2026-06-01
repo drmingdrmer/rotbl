@@ -1,3 +1,11 @@
+mod encoding_meta;
+pub(crate) mod id;
+mod prefix;
+pub(crate) mod segmented_key;
+pub(crate) mod stream;
+mod v001;
+mod v002;
+
 use std::collections::btree_map::Range;
 use std::collections::BTreeMap;
 use std::io::Error;
@@ -11,12 +19,12 @@ use codeq::Decode;
 use codeq::Encode;
 
 use crate::typ::Type;
-use crate::v001::block_encoding_meta::BlockEncodingMeta;
-use crate::v001::block_v001::block_decode_v001;
-use crate::v001::block_v002::block_decode_v002;
-use crate::v001::block_v002::block_encode_v002;
+use crate::v001::block::encoding_meta::BlockEncodingMeta;
+use crate::v001::block::prefix::Prefix;
+use crate::v001::block::v001::block_decode_v001;
+use crate::v001::block::v002::block_decode_v002;
+use crate::v001::block::v002::block_encode_v002;
 use crate::v001::header::Header;
-use crate::v001::prefix::Prefix;
 use crate::v001::types::Checksum;
 use crate::v001::SegmentedKey;
 use crate::v001::SeqMarked;
@@ -153,8 +161,8 @@ mod tests {
 
     use crate::typ::Type;
     use crate::v001::bincode_config::bincode_config;
+    use crate::v001::block::encoding_meta::BlockEncodingMeta;
     use crate::v001::block::Block;
-    use crate::v001::block_encoding_meta::BlockEncodingMeta;
     use crate::v001::header::Header;
     use crate::v001::testing::bb;
     use crate::v001::testing::ss;

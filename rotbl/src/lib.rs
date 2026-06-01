@@ -42,6 +42,12 @@
 
 extern crate core;
 
+// `clap` is used only by the `dump` binary and `zstd-sys` only as a transitive
+// version pin (see Cargo.toml); reference both so `-Wunused-crate-dependencies`
+// does not flag them when checking `--lib`.
+use clap as _;
+use zstd_sys as _;
+
 pub(crate) mod buf;
 pub(crate) mod io_util;
 pub mod num;

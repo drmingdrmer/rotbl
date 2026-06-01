@@ -1,9 +1,12 @@
+pub(crate) mod cache;
+pub(crate) mod cache_stat;
+
 use std::io;
 use std::sync::Arc;
 
-use crate::v001::block_cache::new_block_cache;
-use crate::v001::block_cache::BlockCache;
 use crate::v001::config::Config;
+use crate::v001::db::cache::new_block_cache;
+use crate::v001::db::cache::BlockCache;
 
 pub struct DB {
     #[allow(dead_code)]
