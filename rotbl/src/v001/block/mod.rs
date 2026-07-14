@@ -18,6 +18,8 @@ use codeq::config::CodeqConfig;
 use codeq::Decode;
 use codeq::Encode;
 
+/// `InvalidData` error constructor, shared by the V001 and V002 block decoders.
+pub(crate) use crate::err::invalid_data as invalid;
 use crate::typ::Type;
 use crate::v001::block::encoding_meta::BlockEncodingMeta;
 use crate::v001::block::prefix::Prefix;
@@ -29,14 +31,6 @@ use crate::v001::types::Checksum;
 use crate::v001::SegmentedKey;
 use crate::v001::SeqMarked;
 use crate::version::Version;
-
-/// Wrap any error as an [`Error`] of [`InvalidData`](std::io::ErrorKind::InvalidData) kind.
-///
-/// Shared by the V001 and V002 block decoders.
-pub(crate) fn invalid<E>(e: E) -> Error
-where E: Into<Box<dyn std::error::Error + Send + Sync>> {
-    Error::new(std::io::ErrorKind::InvalidData, e)
-}
 
 /// Iterator of key-values inside a block.
 ///
@@ -357,7 +351,7 @@ mod tests {
             Header::new(Type::Block, Version::V002).encode(&mut cw).unwrap();
             BlockEncodingMeta::new(block_num, payload.len() as u64).encode(&mut cw).unwrap();
             cw.write_all(payload).unwrap();
-            cw.write_checksum().unwrap();
+            cw.finalize().unwrap();
         }
         out
     }

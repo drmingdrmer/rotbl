@@ -37,8 +37,6 @@ const ZSTD_LEVEL: i32 = 1;
 /// Encode a block in the V002 on-disk layout: `header + meta + payload +
 /// checksum`. Returns the number of bytes written.
 pub(crate) fn block_encode_v002<W: Write>(block: &Block, mut w: W) -> Result<usize, Error> {
-    let mut n = 0usize;
-
     // The body is two separate bincode sections: the common prefix and the
     // suffix-keyed entry map.
     let mut raw = Vec::new();
@@ -56,17 +54,15 @@ pub(crate) fn block_encode_v002<W: Write>(block: &Block, mut w: W) -> Result<usi
 
     let mut cw = Checksum::new_writer(&mut w);
 
-    n += block.header.encode(&mut cw)?;
+    block.header.encode(&mut cw)?;
 
     let meta = BlockEncodingMeta::new(block.meta.block_num(), encoded_size);
-    n += meta.encode(&mut cw)?;
+    meta.encode(&mut cw)?;
 
     cw.write_all(&[COMPRESSION_ZSTD])?;
     cw.write_all(&body)?;
-    n += encoded_size as usize;
-    n += cw.write_checksum()?;
 
-    Ok(n)
+    cw.finalize()
 }
 
 /// Decode a V002 block from `cr`, whose header has already been read (and so is

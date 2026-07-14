@@ -38,14 +38,12 @@ impl FixedSize for Header {
 
 impl codeq::Encode for Header {
     fn encode<W: Write>(&self, w: W) -> Result<usize, io::Error> {
-        let mut n = 0;
         let mut hw = Checksum::new_writer(w);
 
-        n += self.typ.encode(&mut hw)?;
-        n += self.version.encode(&mut hw)?;
+        self.typ.encode(&mut hw)?;
+        self.version.encode(&mut hw)?;
 
-        n += hw.write_checksum()?;
-        Ok(n)
+        hw.finalize()
     }
 }
 

@@ -49,6 +49,7 @@ use clap as _;
 use zstd_sys as _;
 
 pub(crate) mod buf;
+pub(crate) mod err;
 pub(crate) mod io_util;
 pub mod num;
 pub mod storage;

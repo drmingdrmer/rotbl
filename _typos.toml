@@ -1,0 +1,11 @@
+# rotbl/tests/compat/ holds generated golden fixtures: every key is a random
+# short string (e.g. `aci`, `ags`, `aas`). They are data, not prose, and must
+# never be "corrected" — rewriting a key corrupts the byte-exact compat golden
+# that the compat tests assert against.
+[files]
+extend-exclude = ["rotbl/tests/compat/"]
+
+# `abd` is the expected output of the 3-char key-increment test in
+# rotbl/tests/test_compat.rs (`next("abc") == "abd"`), not a misspelling.
+[default.extend-words]
+abd = "abd"

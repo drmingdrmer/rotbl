@@ -11,6 +11,9 @@ const ROTBL: [u8; 8] = *b"rotbl\0\0\0";
 const ROTBL_META: [u8; 8] = *b"rotbl_m\0";
 const BLOCK: [u8; 8] = *b"blk\0\0\0\0\0";
 const BLOCK_INDEX: [u8; 8] = *b"blk_idx\0";
+const MANIFEST_FILE: [u8; 8] = *b"mfst\0\0\0\0";
+const LEVEL_MANIFEST: [u8; 8] = *b"lvl_mfst";
+const LEVELS: [u8; 8] = *b"levels\0\0";
 
 #[derive(Debug)]
 #[derive(Clone, Copy)]
@@ -21,6 +24,9 @@ pub enum Type {
     RotblMeta,
     Block,
     BlockIndex,
+    ManifestFile,
+    LevelManifest,
+    Levels,
 }
 
 impl fmt::Display for Type {
@@ -43,6 +49,9 @@ impl codeq::Encode for Type {
             Type::RotblMeta => &ROTBL_META,
             Type::Block => &BLOCK,
             Type::BlockIndex => &BLOCK_INDEX,
+            Type::ManifestFile => &MANIFEST_FILE,
+            Type::LevelManifest => &LEVEL_MANIFEST,
+            Type::Levels => &LEVELS,
         };
         w.write_all(b)?;
 
@@ -61,6 +70,9 @@ impl codeq::Decode for Type {
             ROTBL_META => Ok(Type::RotblMeta),
             BLOCK => Ok(Type::Block),
             BLOCK_INDEX => Ok(Type::BlockIndex),
+            MANIFEST_FILE => Ok(Type::ManifestFile),
+            LEVEL_MANIFEST => Ok(Type::LevelManifest),
+            LEVELS => Ok(Type::Levels),
             _ => Err(Error::new(
                 io::ErrorKind::InvalidData,
                 format!("invalid type: {:?}", buf),
@@ -76,6 +88,9 @@ mod tests {
 
     use crate::typ::typ::BLOCK;
     use crate::typ::typ::BLOCK_INDEX;
+    use crate::typ::typ::LEVELS;
+    use crate::typ::typ::LEVEL_MANIFEST;
+    use crate::typ::typ::MANIFEST_FILE;
     use crate::typ::typ::ROTBL;
     use crate::typ::typ::ROTBL_META;
     use crate::typ::typ::VL_ARRAY;
@@ -121,6 +136,30 @@ mod tests {
             assert_eq!(n, 8);
             assert_eq!(b, BLOCK_INDEX);
             assert_eq!(Type::decode(&mut b.as_slice())?, Type::BlockIndex);
+        }
+
+        {
+            let mut b = Vec::new();
+            let n = Type::ManifestFile.encode(&mut b)?;
+            assert_eq!(n, 8);
+            assert_eq!(b, MANIFEST_FILE);
+            assert_eq!(Type::decode(&mut b.as_slice())?, Type::ManifestFile);
+        }
+
+        {
+            let mut b = Vec::new();
+            let n = Type::LevelManifest.encode(&mut b)?;
+            assert_eq!(n, 8);
+            assert_eq!(b, LEVEL_MANIFEST);
+            assert_eq!(Type::decode(&mut b.as_slice())?, Type::LevelManifest);
+        }
+
+        {
+            let mut b = Vec::new();
+            let n = Type::Levels.encode(&mut b)?;
+            assert_eq!(n, 8);
+            assert_eq!(b, LEVELS);
+            assert_eq!(Type::decode(&mut b.as_slice())?, Type::Levels);
         }
         Ok(())
     }

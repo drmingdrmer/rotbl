@@ -35,7 +35,7 @@ anyhow            = { version = "1.0.63" }
 bincode           = { version = "2.0.0-rc.3", features = ["serde"] }
 byteorder         = { version = "1.4.3" }
 bytes             = { version = "1.0" }
-codeq             = { version = "0.5.0" }
+codeq             = { version = "0.6.2" }
 serde             = { version = "1.0.114", features = ["derive", "rc"]}
 serde_json        = { version = "1.0.57" }
 # zstd and its bundled C libzstd (zstd-sys) are exact-pinned so the compressed

@@ -49,24 +49,19 @@ impl fmt::Display for RotblMeta {
 
 impl codeq::Encode for RotblMeta {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
-        let mut n = 0usize;
-
         let mut cw = Checksum::new_writer(&mut w);
 
-        n += self.header.encode(&mut cw)?;
+        self.header.encode(&mut cw)?;
 
         let encoded_data = serde_json::to_vec(&self.payload)?;
         let encoded_size = encoded_data.len() as u64;
 
         let s = Checksum::wrap(encoded_size);
-        n += s.encode(&mut cw)?;
+        s.encode(&mut cw)?;
 
         cw.write_all(&encoded_data)?;
-        n += encoded_size as usize;
 
-        n += cw.write_checksum()?;
-
-        Ok(n)
+        cw.finalize()
     }
 }
 

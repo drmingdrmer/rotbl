@@ -6,8 +6,8 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-use std::time::SystemTime;
-use std::time::UNIX_EPOCH;
+use std::sync::atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 
 use crate::io_util::DEFAULT_WRITE_BUF_SIZE;
 use crate::storage;
@@ -36,12 +36,16 @@ impl FsStorage {
         self.base_dir.to_str().expect("base_dir should be valid UTF-8")
     }
 
+    /// A unique suffix for a temp file name.
+    ///
+    /// Process-wide monotonic counter in the low 32 bits (unique within this
+    /// process, no syscall, no sleep) with the pid in the high 32 bits, so two
+    /// processes writing the same key pick disjoint temp names. `create_new(true)`
+    /// turns any residual collision into a clean error rather than a clobber.
     fn temp_fn_num() -> u64 {
-        // Sleep to avoid timestamp collision when this function is called twice in a short time.
-        std::thread::sleep(std::time::Duration::from_micros(2));
-
-        let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_micros();
-        ts as u64
+        static COUNTER: AtomicU64 = AtomicU64::new(0);
+        let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
+        (u64::from(std::process::id()) << 32) | (seq & 0xFFFF_FFFF)
     }
 }
 
@@ -168,7 +172,27 @@ impl storage::Writer for FsWriter {
 
         fs::rename(&self.temp_path, &self.target_path)?;
 
+        // The rename lives in the parent directory entry; without syncing the
+        // directory a power loss can revert the target to its previous
+        // content, silently rolling back an acknowledged commit.
+        #[cfg(unix)]
+        if let Some(parent) = self.target_path.parent() {
+            File::open(parent)?.sync_all()?;
+        }
+
         Ok(())
+    }
+}
+
+impl Drop for FsWriter {
+    fn drop(&mut self) {
+        // Best-effort cleanup so an aborted or failed write does not leak the
+        // temp file. After a successful commit the temp path no longer exists.
+        if let Err(e) = fs::remove_file(&self.temp_path) {
+            if e.kind() != io::ErrorKind::NotFound {
+                log::warn!("failed to remove temp file {:?}: {}", self.temp_path, e);
+            }
+        }
     }
 }
 
@@ -223,6 +247,21 @@ mod tests {
     }
 
     #[test]
+    fn test_fs_writer_drop_removes_temp_file() -> Result<(), io::Error> {
+        let temp_dir = tempfile::tempdir()?;
+        let temp_path = temp_dir.path().join("test.txt.tmp");
+        let target_path = temp_dir.path().join("test.txt");
+
+        let mut writer = FsWriter::new(temp_path.clone(), target_path.clone())?;
+        writer.write_all(b"abandoned")?;
+        drop(writer);
+
+        assert!(!temp_path.exists());
+        assert!(!target_path.exists());
+        Ok(())
+    }
+
+    #[test]
     fn test_fs_storage_base_dir() -> Result<(), io::Error> {
         let temp_dir = tempfile::tempdir()?;
 
@@ -234,11 +273,9 @@ mod tests {
 
     #[test]
     fn test_temp_fn() {
+        // The high 32 bits carry the pid; the low bits are the sequence.
         let got = FsStorage::temp_fn_num();
-
-        // typical timestamp in macro-seconds is `1_752_062_180_209_798`
-        assert!(got > 1_000_000_000_000_000);
-        assert!(got < 2_000_000_000_000_000);
+        assert_eq!(got >> 32, u64::from(std::process::id()));
     }
 
     #[test]

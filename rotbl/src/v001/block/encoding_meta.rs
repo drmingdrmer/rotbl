@@ -40,16 +40,12 @@ impl BlockEncodingMeta {
 
 impl codeq::Encode for BlockEncodingMeta {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, Error> {
-        let mut n = 0;
         let mut cw = Checksum::new_writer(&mut w);
 
         cw.write_u64::<BigEndian>(self.block_num as u64)?;
-        n += 8;
         cw.write_u64::<BigEndian>(self.data_encoded_size)?;
-        n += 8;
-        n += cw.write_checksum()?;
 
-        Ok(n)
+        cw.finalize()
     }
 }
 

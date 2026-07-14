@@ -23,8 +23,8 @@ use crate::storage::Storage;
 use crate::typ::Type;
 use crate::v001::block::id::BlockId;
 use crate::v001::block::Block;
+use crate::v001::db::cache::new_block_cache;
 use crate::v001::db::cache::BlockCache;
-use crate::v001::db::DB;
 use crate::v001::header::Header;
 use crate::v001::range::RangeArg;
 use crate::v001::rotbl::access_stat::AccessStat;
@@ -107,10 +107,21 @@ impl Rotbl {
         Ok(t)
     }
 
-    pub fn open<S: Storage>(
+    /// Open a standalone table with its own private block cache.
+    pub fn open<S: Storage>(storage: S, config: Config, rel_path: &str) -> Result<Self, io::Error> {
+        let block_cache = new_block_cache(&config.block_cache);
+        Self::open_in_db(storage, rel_path, 0, block_cache)
+    }
+
+    /// Open a table that shares `block_cache`, keyed under `table_id`.
+    ///
+    /// `table_id` is the in-memory cache namespace assigned by the owning
+    /// [`DB`](crate::v001::DB); the on-disk table id is reserved and ignored.
+    pub(crate) fn open_in_db<S: Storage>(
         mut storage: S,
-        config: Config,
         rel_path: &str,
+        table_id: u32,
+        block_cache: BlockCache,
     ) -> Result<Self, io::Error> {
         // Single positional reader handles both the one-shot metadata parse
         // and the concurrent block-load hot path.
@@ -126,7 +137,9 @@ impl Rotbl {
         let mut prefix_slice = prefix.as_slice();
         let header = Header::decode(&mut prefix_slice)?;
         assert_eq!(header, Header::new(Type::Rotbl, Version::V001));
-        let table_id = WithChecksum::<u32>::decode(&mut prefix_slice)?.into_inner();
+        // The on-disk table id is reserved (always 0) and not used for caching;
+        // the cache namespace is the injected `table_id`.
+        let _on_disk_table_id = WithChecksum::<u32>::decode(&mut prefix_slice)?.into_inner();
 
         // Footer sits at the tail of the file at a fixed offset.
         let footer_offset = file_size - Footer::encoded_size() as u64;
@@ -149,10 +162,8 @@ impl Rotbl {
             stat::RotblStat::decode(&mut buf.as_slice())?
         };
 
-        let cache = DB::new_cache(config.clone());
-
         let r = Self {
-            block_cache: cache,
+            block_cache,
             table_id,
             header,
             file,

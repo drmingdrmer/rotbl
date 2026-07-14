@@ -139,23 +139,18 @@ impl BlockIndex {
 
 impl codeq::Encode for BlockIndex {
     fn encode<W: Write>(&self, mut w: W) -> Result<usize, io::Error> {
-        let mut n = 0usize;
-
         let encoded_data = serde_json::to_vec(&self.data)?;
         let encoded_size = encoded_data.len() as u64;
 
         let mut cw = Checksum::new_writer(&mut w);
 
-        n += self.header.encode(&mut cw)?;
+        self.header.encode(&mut cw)?;
 
-        n += Checksum::wrap(encoded_size).encode(&mut cw)?;
+        Checksum::wrap(encoded_size).encode(&mut cw)?;
 
         cw.write_all(&encoded_data)?;
-        n += encoded_size as usize;
 
-        n += cw.write_checksum()?;
-
-        Ok(n)
+        cw.finalize()
     }
 }
 

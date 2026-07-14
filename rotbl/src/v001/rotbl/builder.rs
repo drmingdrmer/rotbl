@@ -8,6 +8,8 @@ use crate::storage::BoxWriter;
 use crate::storage::Storage;
 use crate::typ::Type;
 use crate::v001::block::Block;
+use crate::v001::db::cache::new_block_cache;
+use crate::v001::db::cache::BlockCache;
 use crate::v001::header::Header;
 use crate::v001::rotbl::index::BlockIndexEntry;
 use crate::v001::rotbl::stat::RotblStat;
@@ -19,7 +21,6 @@ use crate::v001::Footer;
 use crate::v001::Rotbl;
 use crate::v001::RotblMeta;
 use crate::v001::SeqMarked;
-use crate::v001::DB;
 use crate::version::Version;
 
 pub struct Builder<S>
@@ -30,6 +31,8 @@ where S: Storage
     offset: usize,
     header: Header,
     table_id: u32,
+
+    block_cache: BlockCache,
 
     chunk_size: usize,
 
@@ -62,11 +65,23 @@ where S: Storage
 impl<S> Builder<S>
 where S: Storage
 {
-    pub fn new(mut storage: S, config: Config, rel_path: &str) -> Result<Self, io::Error> {
-        // Table id is not supported yet in this version,
-        // and is always 0.
-        let table_id = 0;
+    /// Build a standalone table with its own private block cache.
+    pub fn new(storage: S, config: Config, rel_path: &str) -> Result<Self, io::Error> {
+        let block_cache = new_block_cache(&config.block_cache);
+        Self::new_in_db(storage, config, rel_path, 0, block_cache)
+    }
 
+    /// Build a table that shares `block_cache`, keyed under `table_id`.
+    ///
+    /// `table_id` is the in-memory cache namespace only; the on-disk table id
+    /// stays 0.
+    pub(crate) fn new_in_db(
+        mut storage: S,
+        config: Config,
+        rel_path: &str,
+        table_id: u32,
+        block_cache: BlockCache,
+    ) -> Result<Self, io::Error> {
         let f = storage.writer(rel_path)?;
 
         let chunk_size = config.block_config.max_items();
@@ -82,6 +97,7 @@ where S: Storage
             offset: 0,
             header: Header::new(Type::Rotbl, Version::V001),
             table_id,
+            block_cache,
             chunk_size,
             stat: RotblStat::default(),
             this_chunk: Vec::with_capacity(chunk_size),
@@ -94,7 +110,9 @@ where S: Storage
 
         builder.offset += builder.header.encode(&mut builder.writer)?;
 
-        let tid = Checksum::wrap(builder.table_id);
+        // The on-disk table id is reserved and always 0; `table_id` is the
+        // in-memory cache namespace, not persisted.
+        let tid = Checksum::wrap(0u32);
         builder.offset += tid.encode(&mut builder.writer)?;
 
         Ok(builder)
@@ -204,10 +222,8 @@ where S: Storage
 
         let file = self.storage.reader_at(&self.rel_path)?;
 
-        let block_cache = DB::new_cache(self.config.clone());
-
         let r = Rotbl {
-            block_cache,
+            block_cache: self.block_cache,
             file,
             file_size: self.offset as u64,
             header: self.header,

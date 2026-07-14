@@ -89,16 +89,14 @@ impl codeq::Encode for RotblStat {
         {
             let mut cw = Checksum::new_writer(&mut w);
             cw.write_u64::<BigEndian>(len)?;
-            n += 8;
 
-            n += cw.write_checksum()?;
+            n += cw.finalize()?;
         }
 
         let mut cw = Checksum::new_writer(w);
         cw.write_all(&buf)?;
-        n += len as usize;
 
-        n += cw.write_checksum()?;
+        n += cw.finalize()?;
 
         Ok(n)
     }
