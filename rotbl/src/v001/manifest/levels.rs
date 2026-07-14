@@ -213,3 +213,157 @@ fn warn_manifest_max_bytes(name: &str, bytes: u64) {
         );
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use codeq::FixedSize;
+
+    use super::*;
+    use crate::v001::testing::table_info as table;
+
+    #[test]
+    fn test_levels_header() {
+        assert_eq!(
+            Levels::default().header(),
+            Header::new(Type::Levels, Version::V001)
+        );
+    }
+
+    #[test]
+    fn test_round_trip() -> Result<(), io::Error> {
+        let mut levels = Levels::default();
+        levels.insert(table(7, 3, "a", "z"))?;
+
+        let mut encoded = Vec::new();
+        levels.encode(&mut encoded)?;
+        let decoded = Levels::decode(encoded.as_slice())?;
+
+        assert_eq!(levels, decoded);
+        Ok(())
+    }
+
+    /// Ranges are disjoint within a level but may repeat across levels: `level`
+    /// is a recency rank, so the same key range can live in several generations.
+    #[test]
+    fn test_insert_allows_identical_range_across_levels() -> Result<(), io::Error> {
+        let mut levels = Levels::default();
+        levels.insert(table(0, 0, "a", "z"))?;
+        levels.insert(table(1, 1, "a", "z"))?; // same [a,z] on a newer level: allowed
+
+        assert_eq!(levels.as_map().len(), 2);
+        assert_eq!(
+            levels.level(0).unwrap().table_for_key(0, "m"),
+            Some(table(0, 0, "a", "z"))
+        );
+        assert_eq!(
+            levels.level(1).unwrap().table_for_key(1, "m"),
+            Some(table(1, 1, "a", "z"))
+        );
+        Ok(())
+    }
+
+    /// `table_by_id` scans every level, so it finds a table on a higher level too.
+    #[test]
+    fn test_table_by_id_scans_all_levels() -> Result<(), io::Error> {
+        let mut levels = Levels::default();
+        levels.insert(table(0, 0, "a", "c"))?;
+        levels.insert(table(1, 2, "a", "c"))?;
+
+        assert_eq!(levels.table_by_id(1), Some(table(1, 2, "a", "c")));
+        assert_eq!(levels.table_by_id(42), None);
+        Ok(())
+    }
+
+    /// Removing a table drops its level only when the level becomes empty; a
+    /// level that still holds other tables survives.
+    #[test]
+    fn test_remove_keeps_or_drops_level() -> Result<(), io::Error> {
+        let mut levels = Levels::default();
+        levels.insert(table(1, 0, "a", "c"))?;
+        levels.insert(table(2, 0, "f", "h"))?;
+
+        // One of two removed: the level stays.
+        assert_eq!(levels.remove_table(1), Some(table(1, 0, "a", "c")));
+        assert_eq!(levels.level(0).unwrap().tables().len(), 1);
+
+        // The last one removed: the level is dropped entirely.
+        assert_eq!(levels.remove_table(2), Some(table(2, 0, "f", "h")));
+        assert_eq!(levels.level(0), None);
+        assert!(levels.as_map().is_empty());
+
+        assert_eq!(levels.remove_table(2), None); // already gone
+        Ok(())
+    }
+
+    #[test]
+    fn test_validate() -> Result<(), io::Error> {
+        let mut levels = Levels::default();
+        levels.insert(table(1, 0, "a", "c"))?;
+
+        levels.validate(1, 2)?; // level 0 < next_level 1, id 1 < next_table_id 2
+
+        let err = levels.validate(0, 2).unwrap_err(); // level 0 >= next_level 0
+        assert!(err.to_string().contains("reaches next_level"), "{err}");
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_rejects_wrong_header() {
+        let mut bytes = Vec::new();
+        Header::new(Type::LevelManifest, Version::V001).encode(&mut bytes).unwrap();
+        let err = Levels::decode(bytes.as_slice()).unwrap_err();
+        assert!(
+            err.to_string().contains("unsupported levels header"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn test_decode_rejects_uncompressed_len_mismatch() -> Result<(), io::Error> {
+        let mut levels = Levels::default();
+        levels.insert(table(7, 3, "a", "z"))?;
+        let mut encoded = Vec::new();
+        levels.encode(&mut encoded)?;
+
+        // `uncompressed_len` is the `u64` right after the `Levels` header.
+        let off = Header::encoded_size();
+
+        let mut too_large = encoded.clone();
+        too_large[off..off + 8].copy_from_slice(&9_999u64.to_be_bytes());
+        let err = Levels::decode(too_large.as_slice()).unwrap_err();
+        assert!(err.to_string().contains("expected 9999"), "{err}");
+
+        let mut too_small = encoded.clone();
+        too_small[off..off + 8].copy_from_slice(&1u64.to_be_bytes());
+        let err = Levels::decode(too_small.as_slice()).unwrap_err();
+        assert!(err.to_string().contains("expected 1"), "{err}");
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_rejects_duplicate_level() -> Result<(), io::Error> {
+        let mut level_manifest = LevelManifest::default();
+        level_manifest.insert(table(7, 3, "a", "z"))?;
+
+        // Hand-build an uncompressed payload with two entries for the same level.
+        let mut raw = Vec::new();
+        2u64.encode(&mut raw)?;
+        3u32.encode(&mut raw)?;
+        level_manifest.encode(&mut raw)?;
+        3u32.encode(&mut raw)?;
+        level_manifest.encode(&mut raw)?;
+
+        let payload = zstd::encode_all(raw.as_slice(), 1)?;
+        let mut framed = Vec::new();
+        Header::new(Type::Levels, Version::V001).encode(&mut framed)?;
+        (raw.len() as u64).encode(&mut framed)?;
+        payload.encode(&mut framed)?;
+
+        let err = Levels::decode(framed.as_slice()).unwrap_err();
+        assert!(
+            err.to_string().contains("duplicate manifest level 3"),
+            "{err}"
+        );
+        Ok(())
+    }
+}

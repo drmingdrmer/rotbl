@@ -243,3 +243,181 @@ impl Decode for LevelManifest {
         Self::decode_payload(&mut r)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::v001::testing::table_info as table;
+
+    #[test]
+    fn test_level_manifest_header() {
+        assert_eq!(
+            LevelManifest::default().header(),
+            Header::new(Type::LevelManifest, Version::V001)
+        );
+    }
+
+    #[test]
+    fn test_insert_and_lookups() -> Result<(), io::Error> {
+        let mut lm = LevelManifest::default();
+        assert!(lm.is_empty());
+        lm.insert(table(1, 0, "a", "c"))?;
+        lm.insert(table(2, 0, "f", "h"))?;
+
+        assert!(!lm.is_empty());
+        assert_eq!(lm.tables().len(), 2);
+        assert_eq!(lm.table_by_smallest(0, "a"), Some(table(1, 0, "a", "c")));
+        assert_eq!(lm.table_by_smallest(0, "b"), None); // "b" is not a smallest key
+        assert_eq!(lm.table_by_id(0, 2), Some(table(2, 0, "f", "h")));
+        assert_eq!(lm.table_by_id(0, 99), None);
+        Ok(())
+    }
+
+    #[test]
+    fn test_insert_rejects_smallest_greater_than_largest() {
+        let mut lm = LevelManifest::default();
+        let err = lm.insert(table(1, 0, "z", "a")).unwrap_err();
+        assert_eq!(err.kind(), io::ErrorKind::InvalidData);
+        assert!(err.to_string().contains("greater than largest"), "{err}");
+    }
+
+    /// Overlap is rejected regardless of insert order: the neighbor below *and*
+    /// above the new smallest key are both checked. A shared endpoint counts as
+    /// overlap; a clean gap does not.
+    #[test]
+    fn test_insert_detects_overlap_on_both_sides() -> Result<(), io::Error> {
+        let mut lm = LevelManifest::default();
+        lm.insert(table(1, 0, "f", "h"))?;
+
+        // Ends at "f"; existing [f,h] is the upper neighbor sharing that endpoint.
+        let err = lm.insert(table(2, 0, "a", "f")).unwrap_err();
+        assert!(
+            err.to_string().contains("overlapping table ranges"),
+            "{err}"
+        );
+        // Starts at "h"; existing [f,h] is the lower neighbor sharing that endpoint.
+        let err = lm.insert(table(3, 0, "h", "z")).unwrap_err();
+        assert!(
+            err.to_string().contains("overlapping table ranges"),
+            "{err}"
+        );
+
+        // Clean gaps on either side are accepted, in either order.
+        lm.insert(table(4, 0, "i", "z"))?; // gap "h" < "i"
+        lm.insert(table(5, 0, "a", "e"))?; // gap "e" < "f"
+        assert_eq!(lm.tables().len(), 3);
+        Ok(())
+    }
+
+    /// Read routing: ranges within a level are disjoint, so at most one table
+    /// covers a key. Probe inside, on both inclusive boundaries, in the gap,
+    /// below the first table, and above the last.
+    #[test]
+    fn test_table_for_key_routes_within_disjoint_ranges() -> Result<(), io::Error> {
+        let mut lm = LevelManifest::default();
+        lm.insert(table(1, 0, "a", "c"))?;
+        lm.insert(table(2, 0, "f", "h"))?;
+        lm.insert(table(3, 0, "m", "p"))?;
+
+        assert_eq!(lm.table_for_key(0, "b"), Some(table(1, 0, "a", "c")));
+        assert_eq!(lm.table_for_key(0, "a"), Some(table(1, 0, "a", "c"))); // == smallest
+        assert_eq!(lm.table_for_key(0, "c"), Some(table(1, 0, "a", "c"))); // == largest
+        assert_eq!(lm.table_for_key(0, "n"), Some(table(3, 0, "m", "p")));
+
+        assert_eq!(lm.table_for_key(0, "d"), None); // gap between "c" and "f"
+        assert_eq!(lm.table_for_key(0, "0"), None); // below "a"
+        assert_eq!(lm.table_for_key(0, "z"), None); // above "p"
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove_table() -> Result<(), io::Error> {
+        let mut lm = LevelManifest::default();
+        lm.insert(table(1, 0, "a", "c"))?;
+        lm.insert(table(2, 0, "f", "h"))?;
+
+        assert_eq!(lm.remove_table(0, 1), Some(table(1, 0, "a", "c")));
+        assert_eq!(lm.tables().len(), 1);
+        assert!(!lm.is_empty());
+        assert_eq!(lm.remove_table(0, 99), None); // missing id is a no-op
+        assert_eq!(lm.remove_table(0, 2), Some(table(2, 0, "f", "h")));
+        assert!(lm.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn test_validate() -> Result<(), io::Error> {
+        let mut lm = LevelManifest::default();
+        lm.insert(table(1, 0, "a", "c"))?;
+        lm.insert(table(2, 0, "f", "h"))?;
+
+        let mut ids = BTreeSet::new();
+        lm.validate(0, 3, &mut ids)?;
+        assert_eq!(ids, BTreeSet::from([1, 2]));
+
+        // Every table_id must be below next_table_id.
+        let err = lm.validate(0, 2, &mut BTreeSet::new()).unwrap_err();
+        assert!(err.to_string().contains("reaches next_table_id"), "{err}");
+
+        // An empty level is invalid.
+        let err = LevelManifest::default().validate(0, 1, &mut BTreeSet::new()).unwrap_err();
+        assert!(err.to_string().contains("has no tables"), "{err}");
+        Ok(())
+    }
+
+    /// The shared id set lets validate() catch a table_id already used on
+    /// another level, even though ids are unique *within* one level.
+    #[test]
+    fn test_validate_detects_cross_level_duplicate_id() -> Result<(), io::Error> {
+        let mut lm = LevelManifest::default();
+        lm.insert(table(1, 0, "a", "c"))?;
+
+        let mut ids = BTreeSet::from([1]); // id 1 already seen on another level
+        let err = lm.validate(0, 2, &mut ids).unwrap_err();
+        assert!(err.to_string().contains("duplicate table_id"), "{err}");
+        Ok(())
+    }
+
+    #[test]
+    fn test_round_trip() -> Result<(), io::Error> {
+        let mut lm = LevelManifest::default();
+        lm.insert(table(1, 0, "a", "c"))?;
+        lm.insert(table(2, 0, "f", "h"))?;
+
+        let mut encoded = Vec::new();
+        lm.encode(&mut encoded)?;
+        let decoded = LevelManifest::decode(encoded.as_slice())?;
+        assert_eq!(lm, decoded);
+        Ok(())
+    }
+
+    #[test]
+    fn test_decode_rejects_wrong_header() {
+        let mut bytes = Vec::new();
+        Header::new(Type::Levels, Version::V001).encode(&mut bytes).unwrap();
+        let err = LevelManifest::decode(bytes.as_slice()).unwrap_err();
+        assert!(
+            err.to_string().contains("unsupported level manifest header"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn test_decode_rejects_duplicate_smallest() -> Result<(), io::Error> {
+        // Hand-build a payload with two entries keyed by the same smallest "a".
+        let mut framed = Vec::new();
+        Header::new(Type::LevelManifest, Version::V001).encode(&mut framed)?;
+        2u64.encode(&mut framed)?; // table count
+        for table_id in [1u32, 2] {
+            "a".encode(&mut framed)?; // smallest (duplicated)
+            "z".encode(&mut framed)?; // largest
+            table_id.encode(&mut framed)?;
+        }
+        let err = LevelManifest::decode(framed.as_slice()).unwrap_err();
+        assert!(
+            err.to_string().contains("duplicate table smallest key"),
+            "{err}"
+        );
+        Ok(())
+    }
+}

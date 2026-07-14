@@ -1,10 +1,23 @@
 #![allow(dead_code)]
 
+use std::sync::Arc;
+
 use crate::v001::SeqMarked;
+use crate::v001::TableInfo;
+use crate::v001::TableRecord;
 
 /// Create a string
 pub(crate) fn ss(x: impl ToString) -> String {
     x.to_string()
+}
+
+/// Build a [`TableInfo`] with the given id, level and inclusive `[smallest,
+/// largest]` extent. Shared by the manifest submodule unit tests.
+pub(crate) fn table_info(table_id: u32, level: u32, smallest: &str, largest: &str) -> TableInfo {
+    TableInfo::new(
+        level,
+        Arc::new(TableRecord::new(table_id, smallest, largest)),
+    )
 }
 
 /// Create a String vector from multiple strings
