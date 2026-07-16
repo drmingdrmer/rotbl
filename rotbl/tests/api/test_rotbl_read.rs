@@ -56,7 +56,11 @@ async fn test_rotbl_async_get<S: Storage>(ctx: TestContext<S>) -> anyhow::Result
     Ok(())
 }
 
-async fn test_rotbl_async_range<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
+async fn test_rotbl_async_range<S: Storage>(mut ctx: TestContext<S>) -> anyhow::Result<()> {
+    let config = ctx.config_mut();
+    config.block_config.max_items = Some(4);
+    config.block_config.row_group_max_items = Some(1);
+
     let (_t, _index_data) = create_tmp_table(ctx.storage(), ctx.new_db()?.as_ref(), "foo.rot")?;
 
     let t = Rotbl::open(ctx.storage(), ctx.config(), "foo.rot")?;

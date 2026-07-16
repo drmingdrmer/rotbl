@@ -76,6 +76,12 @@ where S: Storage
                 "BlockConfig.max_items must be greater than 0",
             ));
         }
+        if config.block_config.row_group_max_items() == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "BlockConfig.row_group_max_items must be greater than 0",
+            ));
+        }
 
         let mut builder = Self {
             config,
@@ -151,7 +157,10 @@ where S: Storage
         let block = Block::new(self.stat.block_num, bt);
 
         let block_offset = self.offset as u64;
-        let block_size = block.encode(&mut self.writer)?;
+        let block_size = block.encode_with_row_group_max_items(
+            &mut self.writer,
+            self.config.block_config.row_group_max_items(),
+        )?;
         self.offset += block_size;
         self.stat.data_size += block_size as u64;
 

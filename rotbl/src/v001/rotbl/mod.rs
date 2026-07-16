@@ -18,9 +18,15 @@ use crate::storage::BoxReaderAt;
 use crate::storage::Storage;
 use crate::typ::Type;
 use crate::v001::block::Block;
+use crate::v001::block::CachedBlock;
 use crate::v001::block_cache::BlockCache;
+use crate::v001::block_cache::BlockCacheKey;
+use crate::v001::block_cache::BlockCacheValue;
+use crate::v001::block_cache::RowGroupId;
 use crate::v001::block_id::BlockId;
 use crate::v001::block_index::BlockIndex;
+use crate::v001::block_v003::read_v003_directory;
+use crate::v001::block_v003::v003_fixed_prefix_size;
 use crate::v001::db::DB;
 use crate::v001::footer::Footer;
 use crate::v001::header::Header;
@@ -50,7 +56,8 @@ use crate::version::Version;
 /// ```
 #[derive(Debug)]
 pub struct Rotbl {
-    /// A concurrent, weight-bounded cache of decoded blocks.
+    /// A concurrent, weight-bounded cache of legacy blocks plus V003
+    /// directories and compressed row groups.
     ///
     /// Backed by [`moka::sync::Cache`] — `get` is lock-free and concurrent
     /// cache misses for the same block are coalesced by `try_get_with`, so
@@ -207,38 +214,22 @@ impl Rotbl {
         )
     }
 
-    /// Return the block if it is in the cache.
+    /// Return a fully decoded block when all of its contents are cached.
+    ///
+    /// V003 point reads cache only the directory and accessed compressed groups,
+    /// so this returns `None` until every group has been loaded.
     pub fn get_block(&self, block_num: u32) -> Option<Arc<Block>> {
-        let block_id = BlockId::new(self.table_id, block_num);
-
-        let b = self.block_cache.get(&block_id);
-
-        if b.is_some() {
-            self.access_stat.hit_block(true);
-        }
-
-        b
+        let cached = self.get_cached_block(block_num)?;
+        self.materialize_cached_block(block_num, &cached)
     }
 
-    /// Load a block from disk and fill it into the cache.
+    /// Load and fully decode a block.
     ///
-    /// If the block is already in the cache, it is returned immediately.
-    /// Otherwise the block is loaded from disk, inserted into the cache,
-    /// and returned. Concurrent calls for the same `block_num` are coalesced
-    /// by the underlying moka cache: only one caller performs the disk read,
-    /// while the others block-wait and receive a clone of the loaded `Arc<Block>`.
+    /// V003 retains only its directory and compressed groups in the cache; this
+    /// explicit whole-block API inflates every group before returning.
     pub fn load_block(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
-        // Fast path: record a cache hit and return immediately.
-        if let Some(b) = self.get_block(block_num) {
-            return Ok(b);
-        }
-
-        // Slow path: delegate to moka's singleflight `try_get_with` so that
-        // at most one caller per `block_id` actually runs the disk loader.
-        let block_id = BlockId::new(self.table_id, block_num);
-        self.block_cache
-            .try_get_with(block_id, || self.load_block_nocache(block_num))
-            .map_err(|e: Arc<io::Error>| io::Error::new(e.kind(), e.to_string()))
+        let cached = self.load_cached_block(block_num)?;
+        self.materialize_block(block_num, &cached)
     }
 
     pub async fn load_block_async(
@@ -264,24 +255,78 @@ impl Rotbl {
         Ok(block)
     }
 
-    /// Load a block directly from disk, bypassing the cache.
-    ///
-    /// Invoked as the `try_get_with` initializer on a cache miss. The read
-    /// is issued via [`crate::storage::ReaderAt::read_exact_at`], so
-    /// concurrent initializers for different blocks do not serialize on any
-    /// userspace lock — the kernel's `pread` handles parallel positioned
-    /// reads directly against the page cache / disk.
-    pub(crate) fn load_block_nocache(&self, block_num: u32) -> Result<Arc<Block>, io::Error> {
+    fn get_cached_block(&self, block_num: u32) -> Option<Arc<CachedBlock>> {
+        let block_id = BlockId::new(self.table_id, block_num);
+        let BlockCacheValue::Block(block) =
+            self.block_cache.get(&BlockCacheKey::Block(block_id))?
+        else {
+            return None;
+        };
+
+        self.access_stat.hit_block(true);
+        Some(block)
+    }
+
+    fn load_cached_block(&self, block_num: u32) -> Result<Arc<CachedBlock>, io::Error> {
+        if let Some(block) = self.get_cached_block(block_num) {
+            return Ok(block);
+        }
+
+        let block_id = BlockId::new(self.table_id, block_num);
+        let value = self
+            .block_cache
+            .try_get_with(BlockCacheKey::Block(block_id), || {
+                self.load_cached_block_nocache(block_num)
+            })
+            .map_err(cache_error)?;
+        cached_block_value(value)
+    }
+
+    async fn load_cached_block_async(
+        self: &Arc<Self>,
+        block_num: u32,
+    ) -> Result<Arc<CachedBlock>, io::Error> {
+        if let Some(block) = self.get_cached_block(block_num) {
+            return Ok(block);
+        }
+
+        let table = self.clone();
+        tokio::task::spawn_blocking(move || table.load_cached_block(block_num))
+            .await
+            .map_err(join_error)?
+    }
+
+    /// Load a block directory directly from disk, bypassing the cache.
+    fn load_cached_block_nocache(&self, block_num: u32) -> Result<BlockCacheValue, io::Error> {
         let start = Instant::now();
         debug!("load_block start: {}", block_num);
 
-        let block_meta = self.block_index.get_index_entry_by_num(block_num).unwrap();
+        let block_meta = self
+            .block_index
+            .get_index_entry_by_num(block_num)
+            .ok_or_else(|| invalid_block_num(block_num))?;
+        let fixed_size = v003_fixed_prefix_size();
+        if block_meta.size < fixed_size as u64 {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "block is shorter than the V003 fixed prefix",
+            ));
+        }
 
-        let mut buf = new_uninitialized(block_meta.size as usize);
-        self.file.read_exact_at(&mut buf, block_meta.offset)?;
+        let mut fixed = new_uninitialized(fixed_size);
+        self.file.read_exact_at(&mut fixed, block_meta.offset)?;
+        let mut header_input = fixed.as_slice();
+        let header = Header::decode(&mut header_input)?;
 
-        let block = Block::decode(&mut buf.as_slice())?;
-        let block = Arc::new(block);
+        let block = if header == Header::new(Type::Block, Version::V003) {
+            let directory =
+                read_v003_directory(&*self.file, block_meta.offset, block_meta.size, &fixed)?;
+            CachedBlock::RowGroup(Arc::new(directory))
+        } else {
+            let mut buf = new_uninitialized(block_meta.size as usize);
+            self.file.read_exact_at(&mut buf, block_meta.offset)?;
+            CachedBlock::Decoded(Arc::new(Block::decode(&mut buf.as_slice())?))
+        };
 
         self.access_stat.hit_block(false);
 
@@ -291,7 +336,112 @@ impl Rotbl {
             start.elapsed()
         );
 
-        Ok(block)
+        Ok(BlockCacheValue::Block(Arc::new(block)))
+    }
+
+    fn materialize_block(
+        &self,
+        block_num: u32,
+        cached: &CachedBlock,
+    ) -> Result<Arc<Block>, io::Error> {
+        match cached {
+            CachedBlock::Decoded(block) => Ok(block.clone()),
+            CachedBlock::RowGroup(directory) => {
+                let block = directory.to_block(|group_index| {
+                    let encoded = self.load_row_group(block_num, directory, group_index)?;
+                    directory.decode_group(group_index, &encoded)
+                })?;
+                Ok(Arc::new(block))
+            }
+        }
+    }
+
+    fn materialize_cached_block(&self, block_num: u32, cached: &CachedBlock) -> Option<Arc<Block>> {
+        match cached {
+            CachedBlock::Decoded(block) => Some(block.clone()),
+            CachedBlock::RowGroup(directory) => {
+                let block_id = BlockId::new(self.table_id, block_num);
+                let groups = (0..directory.group_count())
+                    .map(|group_index| self.get_cached_row_group(block_id, group_index))
+                    .collect::<Option<Vec<_>>>()?;
+                let block = directory
+                    .to_block(|group_index| {
+                        directory.decode_group(group_index, &groups[group_index])
+                    })
+                    .expect("cached V003 row groups are validated before insertion");
+                Some(Arc::new(block))
+            }
+        }
+    }
+
+    fn get_cached_row_group(&self, block_id: BlockId, group_index: usize) -> Option<Arc<[u8]>> {
+        let group_id = RowGroupId::new(block_id, group_index)?;
+        let BlockCacheValue::RowGroup(group) =
+            self.block_cache.get(&BlockCacheKey::RowGroup(group_id))?
+        else {
+            return None;
+        };
+        Some(group)
+    }
+
+    fn load_row_group(
+        &self,
+        block_num: u32,
+        directory: &crate::v001::block_v003::RowGroupDirectory,
+        group_index: usize,
+    ) -> Result<Arc<[u8]>, io::Error> {
+        let block_id = BlockId::new(self.table_id, block_num);
+        if let Some(group) = self.get_cached_row_group(block_id, group_index) {
+            return Ok(group);
+        }
+
+        let group_id = RowGroupId::new(block_id, group_index).ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "row-group index exceeds u32")
+        })?;
+        let value = self
+            .block_cache
+            .try_get_with(BlockCacheKey::RowGroup(group_id), || {
+                self.load_row_group_nocache(block_num, directory, group_index)
+            })
+            .map_err(cache_error)?;
+        cached_row_group_value(value)
+    }
+
+    async fn load_row_group_async(
+        self: &Arc<Self>,
+        block_num: u32,
+        directory: Arc<crate::v001::block_v003::RowGroupDirectory>,
+        group_index: usize,
+    ) -> Result<Arc<[u8]>, io::Error> {
+        let block_id = BlockId::new(self.table_id, block_num);
+        if let Some(group) = self.get_cached_row_group(block_id, group_index) {
+            return Ok(group);
+        }
+
+        let table = self.clone();
+        tokio::task::spawn_blocking(move || {
+            table.load_row_group(block_num, &directory, group_index)
+        })
+        .await
+        .map_err(join_error)?
+    }
+
+    fn load_row_group_nocache(
+        &self,
+        block_num: u32,
+        directory: &crate::v001::block_v003::RowGroupDirectory,
+        group_index: usize,
+    ) -> Result<BlockCacheValue, io::Error> {
+        let block_meta = self
+            .block_index
+            .get_index_entry_by_num(block_num)
+            .ok_or_else(|| invalid_block_num(block_num))?;
+        let offset = directory.group_file_offset(block_meta.offset, group_index)?;
+        let size = directory.group_size(group_index)?;
+        let mut encoded = new_uninitialized(size);
+        self.file.read_exact_at(&mut encoded, offset)?;
+        directory.validate_group_bytes(group_index, &encoded)?;
+        Ok(BlockCacheValue::RowGroup(Arc::from(encoded)))
     }
 
     /// Dump the table to human-readable lines in an iterator.
@@ -307,9 +457,19 @@ impl Rotbl {
             return Ok(None);
         };
 
-        let block = self.load_block_async(block_num).await?;
-        let v = block.get(key).cloned();
-        Ok(v)
+        let cached = self.load_cached_block_async(block_num).await?;
+        match cached.as_ref() {
+            CachedBlock::Decoded(block) => Ok(block.get(key).cloned()),
+            CachedBlock::RowGroup(directory) => {
+                let Some(group_index) = directory.group_index(key) else {
+                    return Ok(None);
+                };
+                let encoded =
+                    self.load_row_group_async(block_num, directory.clone(), group_index).await?;
+                let rows = directory.decode_group(group_index, &encoded)?;
+                Ok(directory.group_value(key, &rows))
+            }
+        }
     }
 
     /// Return a `'static` `Stream` that iterating kvs in the specified range.
@@ -325,11 +485,60 @@ impl Rotbl {
         let block_metas = self.block_index.lookup_range(range.clone()).to_vec();
 
         for m in block_metas {
-            let block = self.load_block_async(m.block_num).await?;
-            let it = block.range(range.clone());
-            for (k, v) in it {
-                yield (k.to_string(), v.clone());
+            let cached = self.load_cached_block_async(m.block_num).await?;
+            match cached.as_ref() {
+                CachedBlock::Decoded(block) => {
+                    for (key, value) in block.range(range.clone()) {
+                        yield (key.to_string(), value.clone());
+                    }
+                }
+                CachedBlock::RowGroup(directory) => {
+                    for group_index in directory.group_range(&range) {
+                        let encoded = self
+                            .load_row_group_async(m.block_num, directory.clone(), group_index)
+                            .await?;
+                        let rows = directory.decode_group(group_index, &encoded)?;
+                        for (key, value) in directory.group_rows_in_range(rows, &range) {
+                            yield (key, value);
+                        }
+                    }
+                }
             }
         }
     }
+}
+
+fn cached_block_value(value: BlockCacheValue) -> Result<Arc<CachedBlock>, io::Error> {
+    match value {
+        BlockCacheValue::Block(block) => Ok(block),
+        BlockCacheValue::RowGroup(_) => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "block cache key contains a row group",
+        )),
+    }
+}
+
+fn cached_row_group_value(value: BlockCacheValue) -> Result<Arc<[u8]>, io::Error> {
+    match value {
+        BlockCacheValue::Block(_) => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "row-group cache key contains a block",
+        )),
+        BlockCacheValue::RowGroup(group) => Ok(group),
+    }
+}
+
+fn cache_error(error: Arc<io::Error>) -> io::Error {
+    io::Error::new(error.kind(), error.to_string())
+}
+
+fn join_error(error: tokio::task::JoinError) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, error)
+}
+
+fn invalid_block_num(block_num: u32) -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidInput,
+        format!("block number {block_num} does not exist"),
+    )
 }

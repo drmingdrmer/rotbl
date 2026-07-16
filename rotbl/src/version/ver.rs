@@ -12,6 +12,7 @@ use codeq::FixedSize;
 pub enum Version {
     V001,
     V002,
+    V003,
 }
 
 impl fmt::Display for Version {
@@ -25,6 +26,7 @@ impl Version {
         match self {
             Version::V001 => 1,
             Version::V002 => 2,
+            Version::V003 => 3,
         }
     }
 
@@ -32,6 +34,7 @@ impl Version {
         match v {
             1 => Ok(Version::V001),
             2 => Ok(Version::V002),
+            3 => Ok(Version::V003),
             _ => Err(v),
         }
     }
@@ -72,13 +75,13 @@ mod tests {
 
     #[test]
     fn test_version_codec() -> anyhow::Result<()> {
-        // V002 fully round-trips under `test_codec`: its corruption sweep does +1
-        // per byte, and the value byte 2→3 is not a valid version, so decode fails
+        // V003 fully round-trips under `test_codec`: its corruption sweep does +1
+        // per byte, and the value byte 3→4 is not a valid version, so decode fails
         // as the sweep requires.
-        test_codec(&[0, 0, 0, 0, 0, 0, 0, 2], &Version::V002)?;
+        test_codec(&[0, 0, 0, 0, 0, 0, 0, 3], &Version::V003)?;
 
         // V001 cannot use `test_codec`: the same +1 sweep turns its value byte 1→2,
-        // which decodes as a valid V002 rather than failing. Version integrity is
+        // which decodes as a valid version. Version integrity is
         // instead guarded by the enclosing Header checksum, so a plain round-trip
         // is all this test asserts for V001.
         let mut b = Vec::new();

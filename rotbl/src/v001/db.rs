@@ -29,7 +29,7 @@ impl DB {
         self.config.clone()
     }
 
-    pub fn new_cache(config: Config) -> BlockCache {
+    pub(crate) fn new_cache(config: Config) -> BlockCache {
         new_block_cache(&config.block_cache)
     }
 }

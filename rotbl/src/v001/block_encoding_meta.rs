@@ -6,6 +6,7 @@ use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
 use byteorder::WriteBytesExt;
 use codeq::config::CodeqConfig;
+use codeq::FixedSize;
 
 use crate::v001::types::Checksum;
 
@@ -35,6 +36,12 @@ impl BlockEncodingMeta {
 
     pub fn data_encoded_size(&self) -> u64 {
         self.data_encoded_size
+    }
+}
+
+impl FixedSize for BlockEncodingMeta {
+    fn encoded_size() -> usize {
+        8 + 8 + 8
     }
 }
 

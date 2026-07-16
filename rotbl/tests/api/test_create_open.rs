@@ -35,20 +35,20 @@ fn test_create_table<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
     assert_eq!(t.stat(), &RotblStat {
         block_num: 2,
         key_num: 4,
-        data_size: 158,
-        index_size: 188,
+        data_size: 218,
+        index_size: 190,
     });
 
     assert_eq!(
         t.footer(),
         &Footer::new(
-            Segment::new(194, 188),
-            Segment::new(382, 77),
-            Segment::new(459, 84)
+            Segment::new(254, 190),
+            Segment::new(444, 77),
+            Segment::new(521, 84)
         )
     );
 
-    assert_eq!(615, t.file_size());
+    assert_eq!(677, t.file_size());
 
     Ok(())
 }
@@ -68,26 +68,26 @@ fn test_open_table<S: Storage>(ctx: TestContext<S>) -> anyhow::Result<()> {
     assert_eq!(t.meta().seq(), 5);
     assert_eq!(
         t.block_index(),
-        &BlockIndex::new(index_data.clone()).with_encoded_size(140)
+        &BlockIndex::new(index_data.clone()).with_encoded_size(142)
     );
 
     // Exact sizes here track the pinned libzstd (zstd-sys in Cargo.toml); update if the pin moves.
     assert_eq!(t.stat(), &RotblStat {
         block_num: 2,
         key_num: 4,
-        data_size: 158,
-        index_size: 188,
+        data_size: 218,
+        index_size: 190,
     });
 
     assert_eq!(
         t.footer(),
         &Footer::new(
-            Segment::new(194, 188),
-            Segment::new(382, 77),
-            Segment::new(459, 84)
+            Segment::new(254, 190),
+            Segment::new(444, 77),
+            Segment::new(521, 84)
         )
     );
-    assert_eq!(615, t.file_size());
+    assert_eq!(677, t.file_size());
 
     Ok(())
 }

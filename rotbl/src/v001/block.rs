@@ -5,6 +5,7 @@ use std::io::Read;
 use std::io::Write;
 use std::ops::Bound;
 use std::ops::RangeBounds;
+use std::sync::Arc;
 
 use codeq::config::CodeqConfig;
 use codeq::Decode;
@@ -14,7 +15,10 @@ use crate::typ::Type;
 use crate::v001::block_encoding_meta::BlockEncodingMeta;
 use crate::v001::block_v001::block_decode_v001;
 use crate::v001::block_v002::block_decode_v002;
-use crate::v001::block_v002::block_encode_v002;
+use crate::v001::block_v003::block_decode_v003;
+use crate::v001::block_v003::block_encode_v003;
+use crate::v001::block_v003::RowGroupDirectory;
+use crate::v001::block_v003::DEFAULT_ROW_GROUP_MAX_ITEMS;
 use crate::v001::header::Header;
 use crate::v001::prefix::Prefix;
 use crate::v001::types::Checksum;
@@ -24,7 +28,7 @@ use crate::version::Version;
 
 /// Wrap any error as an [`Error`] of [`InvalidData`](std::io::ErrorKind::InvalidData) kind.
 ///
-/// Shared by the V001 and V002 block decoders.
+/// Shared by the block decoders.
 pub(crate) fn invalid<E>(e: E) -> Error
 where E: Into<Box<dyn std::error::Error + Send + Sync>> {
     Error::new(std::io::ErrorKind::InvalidData, e)
@@ -52,10 +56,10 @@ impl<'a> Iterator for BlockIter<'a> {
 #[derive(Clone)]
 #[derive(PartialEq, Eq)]
 pub struct Block {
-    /// On-disk format header. An in-memory `Block` always reports V002: a block
-    /// decoded from a V001 file is canonicalized to V002 (see `block_decode_v001`)
+    /// On-disk format header. An in-memory `Block` always reports V003: a block
+    /// decoded from a V001 or V002 file is canonicalized to V003
     /// because the in-memory form is identical and new blocks are always written
-    /// as V002. This field describes the in-memory representation, not necessarily
+    /// as V003. This field describes the in-memory representation, not necessarily
     /// the version the bytes were read from.
     pub(crate) header: Header,
 
@@ -70,7 +74,7 @@ pub struct Block {
 
 impl Block {
     pub fn new(block_num: u32, data: BTreeMap<String, SeqMarked>) -> Self {
-        let header = Header::new(Type::Block, Version::V002);
+        let header = Header::new(Type::Block, Version::V003);
         let meta = BlockEncodingMeta::new(block_num, 0);
         let (prefix, data) = Prefix::extract(data);
         Self {
@@ -83,6 +87,14 @@ impl Block {
 
     pub fn data_encoded_size(&self) -> u64 {
         self.meta.data_encoded_size()
+    }
+
+    pub(crate) fn encode_with_row_group_max_items<W: Write>(
+        &self,
+        w: W,
+        row_group_max_items: usize,
+    ) -> Result<usize, Error> {
+        block_encode_v003(self, w, row_group_max_items)
     }
 
     /// The common prefix shared by every key in this block.
@@ -116,7 +128,7 @@ impl Block {
 
 impl Encode for Block {
     fn encode<W: Write>(&self, w: W) -> Result<usize, Error> {
-        block_encode_v002(self, w)
+        self.encode_with_row_group_max_items(w, DEFAULT_ROW_GROUP_MAX_ITEMS)
     }
 }
 
@@ -132,10 +144,18 @@ impl Decode for Block {
             block_decode_v001(cr)
         } else if header == Header::new(Type::Block, Version::V002) {
             block_decode_v002(cr)
+        } else if header == Header::new(Type::Block, Version::V003) {
+            block_decode_v003(cr)
         } else {
             Err(invalid(format!("unsupported block header: {}", header)))
         }
     }
+}
+
+#[derive(Debug)]
+pub(crate) enum CachedBlock {
+    Decoded(Arc<Block>),
+    RowGroup(Arc<RowGroupDirectory>),
 }
 
 #[cfg(test)]
@@ -292,10 +312,9 @@ mod tests {
         let mut b = Vec::new();
         let n = block.encode(&mut b)?;
         assert_eq!(n, b.len());
-        assert_eq!(block.header, Header::new(Type::Block, Version::V002));
+        assert_eq!(block.header, Header::new(Type::Block, Version::V003));
 
-        // Block::new() does not know the on-disk encoded size; mirror what encode
-        // wrote (the payload is `[compression tag][zstd body]`).
+        // Block::new() does not know the on-disk encoded size; mirror what encode wrote.
         block.meta.data_encoded_size = Block::decode(&b[..])?.data_encoded_size();
 
         test_codec(&b[..], &block)?;
@@ -304,7 +323,7 @@ mod tests {
     }
 
     #[test]
-    fn test_block_v002_compresses_large_payload() -> anyhow::Result<()> {
+    fn test_block_v003_compresses_large_payload() -> anyhow::Result<()> {
         // 500 entries sharing one repeated value: highly compressible.
         let data: BTreeMap<String, SeqMarked> = (0..500u64)
             .map(|i| {

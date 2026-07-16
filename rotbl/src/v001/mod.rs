@@ -6,6 +6,7 @@ mod block_index;
 mod block_stream;
 mod block_v001;
 mod block_v002;
+mod block_v003;
 mod cache_stat;
 mod config;
 mod db;

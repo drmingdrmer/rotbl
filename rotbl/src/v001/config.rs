@@ -1,3 +1,5 @@
+use crate::v001::block_v003::DEFAULT_ROW_GROUP_MAX_ITEMS;
+
 #[derive(Default)]
 #[derive(Debug)]
 #[derive(Clone)]
@@ -26,6 +28,9 @@ impl BlockCacheConfig {
 pub struct BlockConfig {
     /// Max item per block
     pub max_items: Option<usize>,
+
+    /// Max item per independently compressed row group.
+    pub row_group_max_items: Option<usize>,
 }
 
 impl BlockConfig {
@@ -38,6 +43,15 @@ impl BlockConfig {
 
     pub fn max_items(&self) -> usize {
         self.max_items.unwrap_or(Self::DEFAULT_MAX_ITEM)
+    }
+
+    pub fn with_row_group_max_items(mut self, row_group_max_items: usize) -> Self {
+        self.row_group_max_items = Some(row_group_max_items);
+        self
+    }
+
+    pub fn row_group_max_items(&self) -> usize {
+        self.row_group_max_items.unwrap_or(DEFAULT_ROW_GROUP_MAX_ITEMS)
     }
 }
 

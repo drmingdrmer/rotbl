@@ -1,8 +1,8 @@
 //! V001 block codec — the original format, kept for reading old blocks.
 //!
-//! The V001 payload is simply the full-key entry map. Blocks are written as V002
+//! The V001 payload is simply the full-key entry map. Blocks are written as V003
 //! now, so V001 is decode-only: [`block_decode_v001`] re-extracts the common
-//! prefix to produce the same canonical in-memory form as V002.
+//! prefix to produce the same canonical in-memory form as V003.
 
 use std::collections::BTreeMap;
 use std::io::Error;
@@ -26,7 +26,7 @@ use crate::version::Version;
 /// Decode a V001 block from `cr`, whose header has already been read (and so is
 /// already folded into the running checksum). Reads the meta, payload, and
 /// trailing checksum, then extracts the common prefix so the result matches
-/// V002's canonical in-memory form.
+/// V003's canonical in-memory form.
 pub(crate) fn block_decode_v001<R: Read>(
     mut cr: ChecksumReader<Checksum, R>,
 ) -> Result<Block, Error> {
@@ -42,7 +42,7 @@ pub(crate) fn block_decode_v001<R: Read>(
     let (prefix, data) = Prefix::extract(full);
 
     Ok(Block {
-        header: Header::new(Type::Block, Version::V002),
+        header: Header::new(Type::Block, Version::V003),
         meta,
         prefix,
         data,
