@@ -58,7 +58,7 @@ impl Block {
         self.data.get(key)
     }
 
-    pub fn range<Q, R>(&self, range: R) -> BlockIter
+    pub fn range<Q, R>(&self, range: R) -> BlockIter<'_>
     where
         R: RangeBounds<Q>,
         String: Borrow<Q>,
