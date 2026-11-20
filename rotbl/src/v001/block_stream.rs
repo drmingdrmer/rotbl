@@ -58,7 +58,7 @@ impl BlockStream {
     /// Returns the next key-value pair in the block.
     ///
     /// This method wraps unsafe operation and provide lifetime safety.
-    fn next(self: Pin<&mut Self>) -> Option<(SegmentedKey, &SeqMarked)> {
+    fn next(self: Pin<&mut Self>) -> Option<(SegmentedKey<'_>, &SeqMarked)> {
         // Safety: We do not move the mutable reference Thus Pin is safe.
         let it = unsafe { &mut self.get_unchecked_mut().iter };
         it.next()

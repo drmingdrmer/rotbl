@@ -255,8 +255,7 @@ impl Rotbl {
         let s = self.clone();
         let join_handle = tokio::task::spawn_blocking(move || s.load_block(block_num));
 
-        let load_block_res =
-            join_handle.await.map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        let load_block_res = join_handle.await.map_err(io::Error::other)?;
 
         let block = load_block_res?;
 

@@ -95,7 +95,7 @@ impl Block {
         self.data.get(suffix)
     }
 
-    pub fn range<R>(&self, range: R) -> BlockIter
+    pub fn range<R>(&self, range: R) -> BlockIter<'_>
     where R: RangeBounds<String> {
         let inner = match self.prefix.suffix_range(&range) {
             Some((start, end)) => self.data.range((start, end)),
